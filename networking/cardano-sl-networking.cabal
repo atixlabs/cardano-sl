@@ -47,7 +47,6 @@ Library
                         Node.Util.Monitor
 
                         NTP.Client
-                        NTP.Example
 
                         Bench.Network.Commons
 
