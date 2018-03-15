@@ -28,7 +28,7 @@ import qualified Pos.DB.BlockIndex as DB
 import qualified Pos.GState as GS
 import           Pos.Launcher.Param (npNtpChecks)
 import           Pos.Launcher.Resource (NodeResources (..))
-import           Pos.Ntp.Check (NtpStatus (..), getNtpStatusOnce)
+import           Pos.Ntp.Worker (NtpStatus (..), getNtpStatusOnce)
 import           Pos.Reporting (reportError)
 import           Pos.Slotting (waitSystemStart)
 import           Pos.Txp (bootDustThreshold)

@@ -109,7 +109,6 @@ library
 
                         -- NTP
                         Pos.Ntp.Configuration
-                        Pos.Ntp.Check
 
                         -- Pos.Binary
                         Pos.Binary.Infra
