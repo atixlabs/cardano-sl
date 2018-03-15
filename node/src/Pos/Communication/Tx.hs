@@ -5,6 +5,7 @@
 module Pos.Communication.Tx
        ( TxMode
        , submitTx
+       , prepareTx
        , prepareMTx
        , prepareRedemptionTx
        , submitTxRaw
@@ -21,8 +22,8 @@ import           Pos.Client.Txp.Addresses   (MonadAddresses (..))
 import           Pos.Client.Txp.Balances    (getOwnUtxoForPk)
 import           Pos.Client.Txp.History     (MonadTxHistory (..))
 import           Pos.Client.Txp.Util        (InputSelectionPolicy, PendingAddresses (..),
-                                             TxCreateMode, TxError (..), createMTx,
-                                             createRedemptionTx, createTx)
+                                             TxCreateMode, TxError (..), TxOutputs, TxOwnedInputs,
+                                             createMTx, createGenericTxSimple, createRedemptionTx, createTx)
 import           Pos.Communication.Methods  (sendTx)
 import           Pos.Communication.Protocol (EnqueueMsg, OutSpecs)
 import           Pos.Communication.Specs    (createOutSpecs)
@@ -32,7 +33,7 @@ import           Pos.Core                   (Address, Coin, makeRedeemAddress, m
 import           Pos.Crypto                 (RedeemSecretKey, SafeSigner, hash,
                                              redeemToPublic, safeToPublic)
 import           Pos.DB.Class               (MonadGState)
-import           Pos.Txp.Core               (TxAux (..), TxId, TxOut (..), TxOutAux (..),
+import           Pos.Txp.Core               (Tx (..), TxAux (..), TxId, TxOut (..), TxOutAux (..),
                                              txaF)
 import           Pos.Txp.Toil.Types         (Utxo)
 import           Pos.Txp.Network.Types      (TxMsgContents (..))
@@ -72,6 +73,18 @@ prepareMTx
 prepareMTx getOwnUtxos hdwSigners pendingAddrs inputSelectionPolicy addrs outputs addrData = do
     utxo <- getOwnUtxos (toList addrs)
     eitherToThrow =<< createMTx pendingAddrs inputSelectionPolicy utxo hdwSigners outputs addrData
+
+prepareTx
+    :: TxMode ssc m
+    => PendingAddresses
+    -> (TxOwnedInputs TxOut -> TxOutputs -> Tx)
+    -> InputSelectionPolicy
+    -> Utxo
+    -> TxOutputs
+    -> Address
+    -> m Tx
+prepareTx pendingTx creator inputSelectionPolicy utxo outputs addr =
+    eitherToThrow =<< createGenericTxSimple pendingTx creator inputSelectionPolicy utxo outputs addr
 
 -- | Construct Tx using secret key and given list of desired outputs
 submitTx

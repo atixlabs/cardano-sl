@@ -13,6 +13,7 @@ module Pos.Client.Txp.Util
        -- * Tx creation
        , TxCreateMode
        , makeAbstractTx
+       , makeTx
        , runTxCreator
        , makePubKeyTx
        , makeMPubKeyTx
@@ -20,6 +21,7 @@ module Pos.Client.Txp.Util
        , makeMOfNTx
        , makeRedemptionTx
        , createGenericTx
+       , createGenericTxSimple
        , createTx
        , createMTx
        , createMOfNTx
@@ -34,6 +36,7 @@ module Pos.Client.Txp.Util
        , isCheckedTxError
        , isNotEnoughMoneyTxError
 
+       , TxOwnedInputs
        , TxOutputs
        , TxWithSpendings
        ) where
@@ -190,14 +193,19 @@ makeAbstractTx :: (owner -> TxSigData -> TxInWitness)
                -> TxAux
 makeAbstractTx mkWit txInputs outputs = TxAux tx txWitness
   where
-    tx = UnsafeTx (map snd txInputs) txOutputs txAttributes
-    txOutputs = map toaOut outputs
-    txAttributes = mkAttributes ()
+    tx = makeTx txInputs outputs
     txWitness = V.fromList $ toList $ txInputs <&>
         \(addr, _) -> mkWit addr txSigData
     txSigData = TxSigData
         { txSigTxHash = hash tx
         }
+
+makeTx :: TxOwnedInputs owner
+       -> TxOutputs
+       -> Tx
+makeTx txInputs outputs = UnsafeTx (map snd txInputs) txOutputs txAttributes
+    where txOutputs = map toaOut outputs
+          txAttributes = mkAttributes ()
 
 -- | Datatype which contains all data from DB which is necessary
 -- to create transactions
@@ -469,6 +477,17 @@ mkOutputsWithRem addrData TxRaw {..}
         let txOut = TxOut changeAddr trRemainingMoney
         pure $ TxOutAux txOut :| toList trOutputs
 
+mkOutputsWithSameRem
+    :: TxCreateMode m
+    => Address
+    -> TxRaw
+    -> TxCreator m TxOutputs
+mkOutputsWithSameRem addr TxRaw {..}
+    | trRemainingMoney == mkCoin 0 = pure trOutputs
+    | otherwise = do
+        let txOut = TxOut addr trRemainingMoney
+        pure $ TxOutAux txOut :| toList trOutputs
+
 prepareInpsOuts
     :: TxCreateMode m
     => PendingAddresses
@@ -479,6 +498,18 @@ prepareInpsOuts
 prepareInpsOuts pendingTx utxo outputs addrData = do
     txRaw@TxRaw {..} <- prepareTxWithFee pendingTx utxo outputs
     outputsWithRem <- mkOutputsWithRem addrData txRaw
+    pure (trInputs, outputsWithRem)
+
+prepareInpsOutsSimple
+    :: TxCreateMode m
+    => PendingAddresses
+    -> Utxo
+    -> TxOutputs
+    -> Address
+    -> TxCreator m (TxOwnedInputs TxOut, TxOutputs)
+prepareInpsOutsSimple pendingTx utxo outputs addr = do
+    txRaw@TxRaw {..} <- prepareTxWithFee pendingTx utxo outputs
+    outputsWithRem <- mkOutputsWithSameRem addr txRaw
     pure (trInputs, outputsWithRem)
 
 createGenericTx
@@ -494,6 +525,20 @@ createGenericTx pendingTx creator inputSelectionPolicy utxo outputs addrData =
     runTxCreator inputSelectionPolicy $ do
         (inps, outs) <- prepareInpsOuts pendingTx utxo outputs addrData
         pure (creator inps outs, map fst inps)
+
+createGenericTxSimple
+    :: TxCreateMode m
+    => PendingAddresses
+    -> (TxOwnedInputs TxOut -> TxOutputs -> Tx)
+    -> InputSelectionPolicy
+    -> Utxo
+    -> TxOutputs
+    -> Address
+    -> m (Either TxError Tx)
+createGenericTxSimple pendingTx creator inputSelectionPolicy utxo outputs addr =
+    runTxCreator inputSelectionPolicy $ do
+        (inps, outs) <- prepareInpsOutsSimple pendingTx utxo outputs addr
+        pure $ creator inps outs
 
 createGenericTxSingle
     :: TxCreateMode m
