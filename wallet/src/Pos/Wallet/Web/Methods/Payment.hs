@@ -52,6 +52,8 @@ import           Pos.Wallet.Web.Account           (GenSeed (..), getSKByAddressP
 import           Pos.Wallet.Web.ClientTypes       (AccountId (..), Addr, CCoin, CId,
                                                    CTx (..), NewBatchPayment (..), Wal,
                                                    mkCCoin)
+import           Pos.Wallet.Web.ClientTypes       (CTxId (..), CHash (..), CTxMeta (..), CPtxCondition (..)) -- FIXME: Remove, just for testing purposes
+import           Pos.Core                         (mkCoin) -- FIXME: Remove, just for testing purposes
 import           Pos.Wallet.Web.Error             (WalletError (..))
 import           Pos.Wallet.Web.Methods.History   (addHistoryTx, constructCTx,
                                                    getCurChainDifficulty)
@@ -118,8 +120,28 @@ getUnsignedTx
     -> Coin
     -> InputSelectionPolicy
     -> m CTx
---getUnsignedTx sa srcAccount dstAccount coin policy =
-getUnsignedTx = error "Not implemented" -- FIXME: Code
+getUnsignedTx _ {-sa-} srcAccount dstAccount coin policy = do
+  logDebug $
+    "Received: srcAccount = " <> show srcAccount
+      <>
+    ", dstAccount = " <> show dstAccount
+      <>
+    ", amount = " <> show coin
+      <>
+    ", policy = " <> show policy
+  return CTx {..}
+  where
+    ctId = CTxId $ CHash "abc"
+    ctInputs = [(srcAccount, mkCCoin $ mkCoin 33333)]
+    ctOutputs = [(dstAccount, mkCCoin $ mkCoin 44444)]
+    ctConfirmations = 123
+    ctMeta = CTxMeta 456
+    ctCondition = CPtxNotTracked
+    ctAmount = mkCCoin $ mkCoin 55555
+    ctIsLocal = False
+    ctIsOutgoing = True
+
+--getUnsignedTx = error "Not implemented" -- FIXME: Code
 
 getTxFee
      :: MonadWalletWebMode m
