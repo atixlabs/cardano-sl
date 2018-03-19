@@ -21,7 +21,7 @@ module Pos.Client.Txp.Util
        , makeMOfNTx
        , makeRedemptionTx
        , createGenericTx
-       , createGenericTxSimple
+       , createGenericTxWithSameRem
        , createTx
        , createMTx
        , createMOfNTx
@@ -200,6 +200,7 @@ makeAbstractTx mkWit txInputs outputs = TxAux tx txWitness
         { txSigTxHash = hash tx
         }
 
+-- | Smart constructor for a tx, given a set of inputs and outputs
 makeTx :: TxOwnedInputs owner
        -> TxOutputs
        -> Tx
@@ -477,6 +478,7 @@ mkOutputsWithRem addrData TxRaw {..}
         let txOut = TxOut changeAddr trRemainingMoney
         pure $ TxOutAux txOut :| toList trOutputs
 
+-- Returns set of tx outputs without changing the output
 mkOutputsWithSameRem
     :: TxCreateMode m
     => Address
@@ -500,14 +502,16 @@ prepareInpsOuts pendingTx utxo outputs addrData = do
     outputsWithRem <- mkOutputsWithRem addrData txRaw
     pure (trInputs, outputsWithRem)
 
-prepareInpsOutsSimple
+-- | Implementation of 'prepareInpsOuts' that doesn't create a new address for the change,
+--   rather sends the funds back to the sender
+prepareInpsOutsSameRem
     :: TxCreateMode m
     => PendingAddresses
     -> Utxo
     -> TxOutputs
     -> Address
     -> TxCreator m (TxOwnedInputs TxOut, TxOutputs)
-prepareInpsOutsSimple pendingTx utxo outputs addr = do
+prepareInpsOutsSameRem pendingTx utxo outputs addr = do
     txRaw@TxRaw {..} <- prepareTxWithFee pendingTx utxo outputs
     outputsWithRem <- mkOutputsWithSameRem addr txRaw
     pure (trInputs, outputsWithRem)
@@ -526,7 +530,7 @@ createGenericTx pendingTx creator inputSelectionPolicy utxo outputs addrData =
         (inps, outs) <- prepareInpsOuts pendingTx utxo outputs addrData
         pure (creator inps outs, map fst inps)
 
-createGenericTxSimple
+createGenericTxWithSameRem
     :: TxCreateMode m
     => PendingAddresses
     -> (TxOwnedInputs TxOut -> TxOutputs -> Tx)
@@ -535,9 +539,9 @@ createGenericTxSimple
     -> TxOutputs
     -> Address
     -> m (Either TxError Tx)
-createGenericTxSimple pendingTx creator inputSelectionPolicy utxo outputs addr =
+createGenericTxWithSameRem pendingTx creator inputSelectionPolicy utxo outputs addr =
     runTxCreator inputSelectionPolicy $ do
-        (inps, outs) <- prepareInpsOutsSimple pendingTx utxo outputs addr
+        (inps, outs) <- prepareInpsOutsSameRem pendingTx utxo outputs addr
         pure $ creator inps outs
 
 createGenericTxSingle

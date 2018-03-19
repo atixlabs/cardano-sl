@@ -11,7 +11,7 @@ module Pos.Wallet.Web.Pending.Util
     , isReclaimableFailure
     , usingPtxCoords
     , allPendingAddresses
-    , allPendingAddresssUtxo
+    , allPendingAddresssForUtxo
     , nonConfirmedTransactions
     ) where
 
@@ -111,8 +111,8 @@ allPendingAddresses =
             (UnsafeTx _ outputs _) = tx
             in Set.fromList $ map (\(TxOut a _) -> a) (toList outputs)
 
-allPendingAddresssUtxo :: Utxo -> PendingAddresses
-allPendingAddresssUtxo = PendingAddresses . Set.fromList . map grabTxOutput . Map.elems
+allPendingAddresssForUtxo :: Utxo -> PendingAddresses
+allPendingAddresssForUtxo = PendingAddresses . Set.fromList . map grabTxOutput . Map.elems
   where
     grabTxOutput :: TxOutAux -> Address
     grabTxOutput TxOutAux{..} =

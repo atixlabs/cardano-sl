@@ -14,6 +14,7 @@ import           Universum
 import           Control.Exception                (AssertionFailed, throw)
 import           Control.Monad.Except             (runExcept)
 import qualified Data.Map                         as M
+import qualified Data.Text                        as Text
 import           Data.Time.Units                  (Second)
 import           Formatting                       (sformat, (%))
 import qualified Formatting                       as F
@@ -27,7 +28,7 @@ import           Pos.Client.Txp.Addresses         (MonadAddresses (..))
 import           Pos.Client.Txp.Balances          (getOwnUtxos)
 import           Pos.Client.Txp.History           (TxHistoryEntry (..))
 import           Pos.Client.Txp.Util              (InputSelectionPolicy (..),
-                                                   computeTxFee, makeTx, runTxCreator)
+                                                   computeTxFee, runTxCreator)
 import           Pos.Communication                (SendActions (..), prepareMTx, prepareTx)
 import           Pos.Configuration                (HasNodeConfiguration,
                                                    walletTxCreationDisabled)
@@ -61,7 +62,7 @@ import           Pos.Wallet.Web.Methods.Txp       (coinDistrToOutputs,
                                                    submitAndSaveNewPtx)
 import           Pos.Wallet.Web.Mode              (MonadWalletWebMode, WalletWebMode)
 import           Pos.Wallet.Web.Pending           (mkPendingTx)
-import           Pos.Wallet.Web.Pending.Util      (allPendingAddresssUtxo)
+import           Pos.Wallet.Web.Pending.Util      (allPendingAddresssForUtxo)
 import           Pos.Wallet.Web.State             (AddressInfo (..),
                                                    AddressLookupMode (Ever, Existing),
                                                    WAddressMeta, WalletSnapshot,
@@ -72,6 +73,7 @@ import           Pos.Wallet.Web.Util              (decodeCTypeOrFail,
                                                    getAccountAddrsOrThrow,
                                                    getWalletAccountIds,
                                                    getWalletAddrsDetector)
+import           System.IO.Error                  (userError)
 
 newPayment
     :: MonadWalletWebMode m
@@ -109,7 +111,7 @@ newUnsignedPayment sa srcAccount dstAccount coin policy =
     -- 2. To let other things (e. g. block processing) happen if
     -- `newPayment`s are done continuously.
     notFasterThan (6 :: Second) $ do
-      sendMoneyTx
+      getUnsignedTx
         sa
         srcAccount
         (one (dstAccount, coin))
@@ -291,27 +293,25 @@ sendMoney SendActions{..} passphrase moneySource dstDistr policy = do
      listF separator formatter =
          F.later $ fold . intersperse separator . fmap (F.bprint formatter)
 
-sendMoneyTx
+getUnsignedTx
     :: MonadWalletWebMode m
     => SendActions m
     -> CId Addr
     -> NonEmpty (CId Addr, Coin)
     -> InputSelectionPolicy
     -> m Tx
-sendMoneyTx SendActions{..} cidSrcAddr dstDistr policy = do
+getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
     when walletTxCreationDisabled $
         throwM err405
         { errReasonPhrase = "Transaction creation is disabled by configuration!"
         }
 
     outputs <- coinDistrToOutputs dstDistr
-    let srcAddr = case cIdToAddress cidSrcAddr of
-                    Right r -> r
-                    Left e  -> error e
+    srcAddr <- either (throwM . userError . Text.unpack) return $ cIdToAddress cidSrcAddr
     senderUtxo <- getFilteredUtxo [srcAddr]
-    let pendingAddrs = allPendingAddresssUtxo senderUtxo
+    let pendingAddrs = allPendingAddresssForUtxo senderUtxo
     tx <- rewrapTxError "Cannot send transaction" $
-                        prepareTx pendingAddrs makeTx policy senderUtxo outputs srcAddr
+                        prepareTx pendingAddrs policy senderUtxo outputs srcAddr
 
     let dstAddrs = map txOutAddress . toList $ _txOutputs tx
     logInfoS $
@@ -322,7 +322,6 @@ sendMoneyTx SendActions{..} cidSrcAddr dstDistr policy = do
         dstAddrs
 
     return tx
-
   where
      -- TODO eliminate copy-paste
      listF separator formatter =

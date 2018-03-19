@@ -23,7 +23,8 @@ import           Pos.Client.Txp.Balances    (getOwnUtxoForPk)
 import           Pos.Client.Txp.History     (MonadTxHistory (..))
 import           Pos.Client.Txp.Util        (InputSelectionPolicy, PendingAddresses (..),
                                              TxCreateMode, TxError (..), TxOutputs, TxOwnedInputs,
-                                             createMTx, createGenericTxSimple, createRedemptionTx, createTx)
+                                             createMTx, createGenericTxWithSameRem,
+                                             createRedemptionTx, createTx, makeTx)
 import           Pos.Communication.Methods  (sendTx)
 import           Pos.Communication.Protocol (EnqueueMsg, OutSpecs)
 import           Pos.Communication.Specs    (createOutSpecs)
@@ -77,14 +78,13 @@ prepareMTx getOwnUtxos hdwSigners pendingAddrs inputSelectionPolicy addrs output
 prepareTx
     :: TxMode ssc m
     => PendingAddresses
-    -> (TxOwnedInputs TxOut -> TxOutputs -> Tx)
     -> InputSelectionPolicy
     -> Utxo
-    -> TxOutputs
+    -> NonEmpty TxOutAux
     -> Address
     -> m Tx
-prepareTx pendingTx creator inputSelectionPolicy utxo outputs addr =
-    eitherToThrow =<< createGenericTxSimple pendingTx creator inputSelectionPolicy utxo outputs addr
+prepareTx pendingTx inputSelectionPolicy utxo outputs addr = do
+    eitherToThrow =<< createGenericTxWithSameRem pendingTx makeTx inputSelectionPolicy utxo outputs addr
 
 -- | Construct Tx using secret key and given list of desired outputs
 submitTx
