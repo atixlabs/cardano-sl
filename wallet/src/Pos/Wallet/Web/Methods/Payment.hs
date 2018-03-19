@@ -52,6 +52,8 @@ import           Pos.Wallet.Web.Account           (GenSeed (..), getSKByAddressP
 import           Pos.Wallet.Web.ClientTypes       (AccountId (..), Addr, CCoin, CId,
                                                    CTx (..), NewBatchPayment (..), Wal,
                                                    mkCCoin)
+import           Pos.Wallet.Web.ClientTypes       (CTxId (..), CHash (..), CTxMeta (..), CPtxCondition (..)) -- FIXME: Remove, just for testing purposes
+import           Pos.Core                         (mkCoin) -- FIXME: Remove, just for testing purposes
 import           Pos.Wallet.Web.Error             (WalletError (..))
 import           Pos.Wallet.Web.Methods.History   (addHistoryTx, constructCTx,
                                                    getCurChainDifficulty)
