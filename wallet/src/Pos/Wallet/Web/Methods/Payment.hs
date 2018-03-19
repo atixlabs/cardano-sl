@@ -42,7 +42,7 @@ import           Pos.Ssc.GodTossing.Configuration (HasGtConfiguration)
 import           Pos.Txp                          (TxFee (..), Utxo, UtxoModifier,
                                                    getUtxoModifier, withTxpLocalData,
                                                    _txOutputs)
-import           Pos.Txp.Core                     ({-Tx (..), -}TxAux (..), TxOut (..))
+import           Pos.Txp.Core                     (Tx (..), TxAux (..), TxOut (..))
 import           Pos.Update.Configuration         (HasUpdateConfiguration)
 import           Pos.Util                         (eitherToThrow, maybeThrow)
 import           Pos.Util.LogSafe                 (logInfoS)
@@ -117,8 +117,27 @@ getUnsignedTx
     -> CId Addr
     -> Coin
     -> InputSelectionPolicy
-    -> m CTx
---getUnsignedTx sa srcAccount dstAccount coin policy =
+    -> m Tx
+{-
+getUnsignedTx _ {-sa-} srcAccount dstAccount coin policy = do
+  logDebug $
+    "Received: srcAccount = " <> show srcAccount
+      <>
+    ", dstAccount = " <> show dstAccount
+      <>
+    ", amount = " <> show coin
+      <>
+    ", policy = " <> show policy
+  return UnsafeTx {..}
+  where
+    fromCTxId :: CTxId -> Either Text TxId
+    fromCTxId (CTxId (CHash txId)) = decodeHashHex txId
+    _txInputs = input :| []
+    input = TxInUtxo (unsafeIntegerToTxId 0) 33333
+    fromRight e = case e of {Right x -> x; Left err -> error err}
+    _txOutputs = error "no output"
+    _txAttributes = error "no input"
+-}
 getUnsignedTx = error "Not implemented" -- FIXME: Code
 
 getTxFee

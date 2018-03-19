@@ -86,7 +86,7 @@ import           Universum
 -------
 import           Pos.Client.Txp.Util        (InputSelectionPolicy)
 import           Pos.Types                  (Coin, SoftwareVersion)
---import           Pos.Txp.Core.Types         (Tx (..))
+import           Pos.Txp.Core.Types         (Tx (..))
 import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryParam,
                                              CReqBody, DCQueryParam, DReqBody,
                                              HasLoggingServer (..), LoggingApi,
@@ -304,7 +304,7 @@ type GetUnsignedTx =
     :> Capture "to" (CId Addr)
     :> Capture "amount" Coin
     :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
-    :> WRes Get CTx
+    :> WRes Get Tx
 
 type TxFee =
        "txs"
