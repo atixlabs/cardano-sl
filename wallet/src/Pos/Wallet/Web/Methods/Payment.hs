@@ -28,7 +28,7 @@ import           Pos.Client.Txp.Balances          (getOwnUtxos)
 import           Pos.Client.Txp.History           (TxHistoryEntry (..))
 import           Pos.Client.Txp.Util              (InputSelectionPolicy (..),
                                                    computeTxFee, runTxCreator)
-import           Pos.Communication                (SendActions (..), prepareMTx)
+import           Pos.Communication                (SendActions (..), prepareMTx, submitAndSave)
 import           Pos.Configuration                (HasNodeConfiguration,
                                                    walletTxCreationDisabled)
 import           Pos.Core                         (Coin, HasConfiguration, addressF,
@@ -108,6 +108,18 @@ newPaymentBatch sa passphrase NewBatchPayment {..} = do
         (AccountMoneySource src)
         npbTo
         npbPolicy
+
+sendSignedTx
+     :: MonadWalletWebMode m
+     => SendActions m
+     -> TxAux
+     -> m Bool
+sendSignedTx sa txAux =
+    -- This is done for two reasons:
+    -- 1. In order not to overflow relay.
+    -- 2. To let other things (e. g. block processing) happen if
+    -- `newPayment`s are done continuously.
+    notFasterThan (6 :: Second) $ sendTxAux sa txAux
 
 getTxFee
      :: MonadWalletWebMode m
@@ -268,6 +280,13 @@ sendMoney SendActions{..} passphrase moneySource dstDistr policy = do
      -- TODO eliminate copy-paste
      listF separator formatter =
          F.later $ fold . intersperse separator . fmap (F.bprint formatter)
+
+sendTxAux
+     :: MonadWalletWebMode m
+     => SendActions m
+     -> TxAux
+     -> m Bool
+sendTxAux SendActions{..} txAux = submitAndSave enqueueMsg txAux
 
 ----------------------------------------------------------------------------
 -- Utilities
