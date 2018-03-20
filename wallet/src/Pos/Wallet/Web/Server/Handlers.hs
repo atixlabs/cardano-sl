@@ -73,6 +73,8 @@ servantHandlers sendActions =
     :<|>
      M.newPaymentBatch sendActions
     :<|>
+     M.newUnsignedPayment sendActions
+    :<|>
      M.getTxFee
     :<|>
      M.cancelAllApplyingPtxs

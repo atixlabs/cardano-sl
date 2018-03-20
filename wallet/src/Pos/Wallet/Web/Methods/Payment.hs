@@ -6,6 +6,7 @@
 module Pos.Wallet.Web.Methods.Payment
        ( newPayment
        , newPaymentBatch
+       , newUnsignedPayment
        , getTxFee
        ) where
 
