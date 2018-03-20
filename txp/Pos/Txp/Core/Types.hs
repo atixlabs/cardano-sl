@@ -62,6 +62,7 @@ import           Pos.Crypto           (Hash, PublicKey, RedeemPublicKey, RedeemS
                                        Signature, hash, shortHashF)
 import           Pos.Data.Attributes  (Attributes, areAttributesKnown)
 import           Pos.Merkle           (MerkleRoot, MerkleTree, mkMerkleTree)
+import           Pos.Util.LogSafe     (SecureLog, buildUnsecure)
 
 -- | Represents transaction identifier as 'Hash' of 'Tx'.
 type TxId = Hash Tx
@@ -218,6 +219,9 @@ txaF = later $ \(TxAux tx w) ->
 
 instance Bi Tx => Buildable TxAux where
     build = bprint txaF
+
+instance Bi Tx => Buildable (SecureLog TxAux) where
+    build = buildUnsecure
 
 -- | Create valid Tx or fail.
 -- Verify inputs and outputs are non empty; have enough coins.

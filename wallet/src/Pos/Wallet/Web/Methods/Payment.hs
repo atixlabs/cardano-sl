@@ -7,6 +7,7 @@ module Pos.Wallet.Web.Methods.Payment
        ( newPayment
        , newPaymentBatch
        , getTxFee
+       , sendSignedTx
        ) where
 
 import           Universum
