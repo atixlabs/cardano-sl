@@ -18,14 +18,25 @@ import           Data.Swagger                (NamedSchema (..), SwaggerType (..)
                                               genericDeclareNamedSchema, minItems,
                                               name, properties, required,
                                               sketchSchema, type_)
+import           Data.Swagger.Internal.Schema
+import           GHC.Generics
+import qualified Data.ByteString as BS
 import           Data.Typeable               (Typeable, typeRep)
 import           Data.Version                (Version)
+import           Crypto.Hash                 (Digest)
 import           Servant.Multipart           (FileData (..))
 
 import           Pos.Client.Txp.Util         (InputSelectionPolicy(..))
 import           Pos.Types                   (ApplicationName, BlockCount (..),
+                                              Address (..), AddrAttributes (..),
+                                              AddrStakeDistribution (..),
+                                              CoinPortion (..), AddrType (..),
                                               BlockVersion, ChainDifficulty, Coin,
                                               SlotCount (..), SoftwareVersion, mkCoin)
+import           Pos.Txp.Core.Types          (Tx (..), TxIn (..), TxOut (..))
+import           Pos.Data.Attributes         (Attributes (..), UnparsedFields (..))
+import           Pos.Crypto.Hashing          (AbstractHash (..))
+import           Pos.Crypto.HD               (HDAddressPayload (..))
 import           Pos.Util.BackupPhrase       (BackupPhrase)
 
 import qualified Pos.Wallet.Web.ClientTypes  as CT
@@ -37,6 +48,29 @@ import           Pos.Wallet.Web.Methods.Misc (PendingTxsSummary, WalletStateSnap
 -- | Instances we need to build Swagger-specification for 'walletApi':
 -- 'ToParamSchema' - for types in parameters ('Capture', etc.),
 -- 'ToSchema' - for types in bodies.
+
+-- | This orphan instance prevents Generic-based deriving mechanism
+-- to use 'ToSchema' 'ByteString' and instead defaults to 'binarySchema'.
+instance GToSchema (K1 i BS.ByteString) where
+  gdeclareNamedSchema _ _ _ = pure $ NamedSchema Nothing binarySchema
+
+instance ToSchema (Digest algo) where
+  declareNamedSchema _ = pure $ NamedSchema Nothing binarySchema
+
+instance ToSchema UnparsedFields where
+  declareNamedSchema _ = pure $ NamedSchema Nothing binarySchema
+
+instance ToSchema a => ToSchema (Attributes a)
+instance ToSchema      (AbstractHash algo a)
+instance ToSchema      TxIn
+instance ToSchema      HDAddressPayload
+instance ToSchema      AddrStakeDistribution
+instance ToSchema      CoinPortion
+instance ToSchema      AddrAttributes
+instance ToSchema      AddrType
+instance ToSchema      Address
+instance ToSchema      TxOut
+instance ToSchema      Tx
 instance ToSchema      Coin
 instance ToParamSchema Coin
 instance ToSchema      CT.CTxId
