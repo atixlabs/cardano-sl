@@ -87,6 +87,8 @@ servantHandlers sendActions =
     :<|>
      M.gatherPendingTxsSummary
     :<|>
+     M.sendSignedTx sendActions
+    :<|>
 
      M.nextUpdate
     :<|>

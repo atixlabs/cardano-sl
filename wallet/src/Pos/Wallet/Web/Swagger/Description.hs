@@ -167,6 +167,9 @@ instance HasCustomSwagger GetPendingTxsSummary where
     swaggerModifier = modifyDescription
         "Get list of all unconfirmed transactions, newest first, with details."
 
+instance HasCustomSwagger SendSignedTx where
+    swaggerModifier = modifyDescription
+        "Send a new signed transaction for payment."
 
 instance HasCustomSwagger NextUpdate where
     swaggerModifier = modifyDescription

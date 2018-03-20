@@ -47,6 +47,7 @@ module Pos.Wallet.Web.Api
        , UpdateTx
        , GetHistory
        , GetPendingTxsSummary
+       , SendSignedTx
        , GetUnsignedTx
 
        , NextUpdate
@@ -84,6 +85,7 @@ import           Servant.Swagger.UI          (SwaggerSchemaUI)
 import           Universum
 
 -------
+import           Pos.Txp.Core.Types         (TxAux (..))
 import           Pos.Client.Txp.Util        (InputSelectionPolicy)
 import           Pos.Types                  (Coin, SoftwareVersion)
 import           Pos.Txp.Core.Types         (Tx (..))
@@ -352,6 +354,13 @@ type GetPendingTxsSummary =
     :> "summary"
     :> WRes Get [PendingTxsSummary]
 
+type SendSignedTx =
+       "txs"
+    :> "signed"
+    :> ReqBody '[JSON] TxAux
+    :> WRes Post Bool
+
+
 -------------------------------------------------------------------------
 -- Updates
 -------------------------------------------------------------------------
@@ -527,6 +536,8 @@ type WalletApi = ApiPrefix :> (
      GetHistory
     :<|>
      GetPendingTxsSummary
+    :<|>
+     SendSignedTx
     :<|>
      -------------------------------------------------------------------------
      -- Updates

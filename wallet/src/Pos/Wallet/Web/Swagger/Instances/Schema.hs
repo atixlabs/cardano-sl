@@ -32,11 +32,18 @@ import           Pos.Types                   (ApplicationName, BlockCount (..),
                                               AddrStakeDistribution (..),
                                               CoinPortion (..), AddrType (..),
                                               BlockVersion, ChainDifficulty, Coin,
-                                              SlotCount (..), SoftwareVersion, mkCoin)
-import           Pos.Txp.Core.Types          (Tx (..), TxIn (..), TxOut (..))
+                                              SlotCount (..), SoftwareVersion,
+                                              Script, mkCoin)
+import           Pos.Txp.Core.Types          (Tx (..), TxIn (..), TxOut (..),
+                                              TxAux (..), TxInWitness (..),
+                                              TxSigData (..))
 import           Pos.Data.Attributes         (Attributes (..), UnparsedFields (..))
 import           Pos.Crypto.Hashing          (AbstractHash (..))
 import           Pos.Crypto.HD               (HDAddressPayload (..))
+import           Pos.Crypto.Signing          (Signature (..), RedeemSignature (..),
+                                              PublicKey (..), RedeemPublicKey)
+import qualified Crypto.Sign.Ed25519         as ED (Signature, PublicKey)
+import           Cardano.Crypto.Wallet       (XSignature, XPub, ChainCode (..))
 import           Pos.Util.BackupPhrase       (BackupPhrase)
 
 import qualified Pos.Wallet.Web.ClientTypes  as CT
@@ -60,6 +67,9 @@ instance ToSchema (Digest algo) where
 instance ToSchema UnparsedFields where
   declareNamedSchema _ = pure $ NamedSchema Nothing binarySchema
 
+instance ToSchema XSignature where
+  declareNamedSchema _ = pure $ NamedSchema Nothing binarySchema
+
 instance ToSchema a => ToSchema (Attributes a)
 instance ToSchema      (AbstractHash algo a)
 instance ToSchema      TxIn
@@ -71,6 +81,18 @@ instance ToSchema      AddrType
 instance ToSchema      Address
 instance ToSchema      TxOut
 instance ToSchema      Tx
+instance ToSchema      PublicKey
+instance ToSchema      ED.Signature
+instance ToSchema      ED.PublicKey
+instance ToSchema      XPub
+deriving instance Generic ChainCode
+instance ToSchema      ChainCode
+instance ToSchema      Script
+instance ToSchema      RedeemPublicKey
+instance ToSchema      (Signature TxSigData)
+instance ToSchema      (RedeemSignature TxSigData)
+instance ToSchema      TxInWitness
+instance ToSchema      TxAux
 instance ToSchema      Coin
 instance ToParamSchema Coin
 instance ToSchema      CT.CTxId

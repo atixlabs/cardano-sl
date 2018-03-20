@@ -75,6 +75,7 @@ library
                       , base58-bytestring
                       , binary
                       , bytestring
+                      , cardano-crypto
                       , cardano-report-server >= 0.2.1
                       , cardano-sl-core
                       , cardano-sl-db
@@ -89,6 +90,7 @@ library
                       , data-default
                       , directory
                       , dlist
+                      , ed25519
                       , ether
                       , exceptions
                       , filepath

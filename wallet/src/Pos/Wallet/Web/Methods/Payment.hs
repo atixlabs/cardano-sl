@@ -8,6 +8,7 @@ module Pos.Wallet.Web.Methods.Payment
        , newPaymentBatch
        , newUnsignedPayment
        , getTxFee
+       , sendSignedTx
        ) where
 
 import           Universum
@@ -31,7 +32,8 @@ import           Pos.Client.Txp.Balances          (getOwnUtxos)
 import           Pos.Client.Txp.History           (TxHistoryEntry (..))
 import           Pos.Client.Txp.Util              (InputSelectionPolicy (..),
                                                    computeTxFee, runTxCreator)
-import           Pos.Communication                (SendActions (..), prepareMTx, prepareTx)
+import           Pos.Communication                (SendActions (..), prepareMTx, prepareTx,
+                                                   submitAndSave)
 import           Pos.Configuration                (HasNodeConfiguration,
                                                    walletTxCreationDisabled)
 import           Pos.Core                         (Coin, HasConfiguration, addressF,
@@ -134,6 +136,18 @@ newPaymentBatch sa passphrase NewBatchPayment {..} = do
         (AccountMoneySource src)
         npbTo
         npbPolicy
+
+sendSignedTx
+     :: MonadWalletWebMode m
+     => SendActions m
+     -> TxAux
+     -> m Bool
+sendSignedTx sa txAux =
+    -- This is done for two reasons:
+    -- 1. In order not to overflow relay.
+    -- 2. To let other things (e. g. block processing) happen if
+    -- `newPayment`s are done continuously.
+    notFasterThan (6 :: Second) $ sendTxAux sa txAux
 
 getTxFee
      :: MonadWalletWebMode m
@@ -320,6 +334,13 @@ getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
         dstAddrs
 
     return tx
+
+sendTxAux
+     :: MonadWalletWebMode m
+     => SendActions m
+     -> TxAux
+     -> m Bool
+sendTxAux SendActions{..} txAux = submitAndSave enqueueMsg txAux
 
 ----------------------------------------------------------------------------
 -- Utilities

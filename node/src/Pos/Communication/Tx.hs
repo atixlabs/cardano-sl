@@ -4,6 +4,7 @@
 
 module Pos.Communication.Tx
        ( TxMode
+       , submitAndSave
        , submitTx
        , prepareTx
        , prepareMTx
