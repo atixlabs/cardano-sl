@@ -13,7 +13,7 @@ module Pos.Wallet.Web.Methods.Payment
 
 import           Universum
 
-import           Control.Exception                (AssertionFailed, throw)
+import           Control.Exception                (throw)
 import           Control.Monad.Except             (runExcept)
 import qualified Data.Map                         as M
 import qualified Data.Text                        as Text
