@@ -478,7 +478,8 @@ mkOutputsWithRem addrData TxRaw {..}
         let txOut = TxOut changeAddr trRemainingMoney
         pure $ TxOutAux txOut :| toList trOutputs
 
--- Returns set of tx outputs without changing the output
+-- | Adds to the outputs of a 'TxRaw' an output for the change.
+--   The address of this output will be the same as the sender of the tx.
 mkOutputsWithSameRem
     :: TxCreateMode m
     => Address

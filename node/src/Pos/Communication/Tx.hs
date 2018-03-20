@@ -22,7 +22,7 @@ import           Pos.Client.Txp.Addresses   (MonadAddresses (..))
 import           Pos.Client.Txp.Balances    (getOwnUtxoForPk)
 import           Pos.Client.Txp.History     (MonadTxHistory (..))
 import           Pos.Client.Txp.Util        (InputSelectionPolicy, PendingAddresses (..),
-                                             TxCreateMode, TxError (..), TxOutputs, TxOwnedInputs,
+                                             TxCreateMode, TxError (..),
                                              createMTx, createGenericTxWithSameRem,
                                              createRedemptionTx, createTx, makeTx)
 import           Pos.Communication.Methods  (sendTx)

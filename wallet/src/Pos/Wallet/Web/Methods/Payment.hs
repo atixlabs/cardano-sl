@@ -16,6 +16,7 @@ import           Control.Exception                (AssertionFailed, throw)
 import           Control.Monad.Except             (runExcept)
 import qualified Data.Map                         as M
 import qualified Data.Text                        as Text
+import           Data.Text.Lazy.Builder           (Builder)
 import           Data.Time.Units                  (Second)
 import           Formatting                       (sformat, (%))
 import qualified Formatting                       as F
@@ -289,10 +290,6 @@ sendMoney SendActions{..} passphrase moneySource dstDistr policy = do
 
     logDebug "sendMoney: constructing response"
     fst <$> constructCTx ws' srcWallet srcWalletAddrsDetector diff th
-  where
-     -- TODO eliminate copy-paste
-     listF separator formatter =
-         F.later $ fold . intersperse separator . fmap (F.bprint formatter)
 
 getUnsignedTx
     :: MonadWalletWebMode m
@@ -323,10 +320,6 @@ getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
         dstAddrs
 
     return tx
-  where
-     -- TODO eliminate copy-paste
-     listF separator formatter =
-         F.later $ fold . intersperse separator . fmap (F.bprint formatter)
 
 ----------------------------------------------------------------------------
 -- Utilities
@@ -334,3 +327,8 @@ getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
 
 notFasterThan :: Second -> WalletWebMode a -> WalletWebMode a
 notFasterThan time action = fst <$> concurrently action (delay time)
+
+listF :: Builder
+      -> F.Format Builder (a -> Builder)
+      -> F.Format r ([a] -> r)
+listF separator formatter = F.later $ fold . intersperse separator . fmap (F.bprint formatter)
