@@ -6,15 +6,18 @@
 module Pos.Wallet.Web.Methods.Payment
        ( newPayment
        , newPaymentBatch
+       , newUnsignedPayment
        , getTxFee
        , sendSignedTx
        ) where
 
 import           Universum
 
-import           Control.Exception                (throw)
+import           Control.Exception                (AssertionFailed, throw)
 import           Control.Monad.Except             (runExcept)
 import qualified Data.Map                         as M
+import qualified Data.Text                        as Text
+import           Data.Text.Lazy.Builder           (Builder)
 import           Data.Time.Units                  (Second)
 import           Formatting                       (sformat, (%))
 import qualified Formatting                       as F
@@ -29,7 +32,8 @@ import           Pos.Client.Txp.Balances          (getOwnUtxos)
 import           Pos.Client.Txp.History           (TxHistoryEntry (..))
 import           Pos.Client.Txp.Util              (InputSelectionPolicy (..),
                                                    computeTxFee, runTxCreator)
-import           Pos.Communication                (SendActions (..), prepareMTx, submitAndSave)
+import           Pos.Communication                (SendActions (..), prepareMTx, prepareTx,
+                                                   submitAndSave)
 import           Pos.Configuration                (HasNodeConfiguration,
                                                    walletTxCreationDisabled)
 import           Pos.Core                         (Coin, HasConfiguration, addressF,
@@ -42,7 +46,8 @@ import           Pos.Ssc.GodTossing.Configuration (HasGtConfiguration)
 import           Pos.Txp                          (TxFee (..), Utxo, UtxoModifier,
                                                    getUtxoModifier, withTxpLocalData,
                                                    _txOutputs)
-import           Pos.Txp.Core                     (TxAux (..), TxOut (..))
+import           Pos.Txp.Core                     (Tx (..), TxAux (..), TxOut (..))
+import           Pos.Txp.DB.Utxo                  (getFilteredUtxo)
 import           Pos.Update.Configuration         (HasUpdateConfiguration)
 import           Pos.Util                         (eitherToThrow, maybeThrow)
 import           Pos.Util.LogSafe                 (logInfoS)
@@ -51,7 +56,7 @@ import           Pos.Wallet.Web.Account           (GenSeed (..), getSKByAddressP
                                                    getSKById)
 import           Pos.Wallet.Web.ClientTypes       (AccountId (..), Addr, CCoin, CId,
                                                    CTx (..), NewBatchPayment (..), Wal,
-                                                   mkCCoin)
+                                                   cIdToAddress, mkCCoin)
 import           Pos.Wallet.Web.Error             (WalletError (..))
 import           Pos.Wallet.Web.Methods.History   (addHistoryTx, constructCTx,
                                                    getCurChainDifficulty)
@@ -61,6 +66,7 @@ import           Pos.Wallet.Web.Methods.Txp       (coinDistrToOutputs,
                                                    submitAndSaveNewPtx)
 import           Pos.Wallet.Web.Mode              (MonadWalletWebMode, WalletWebMode)
 import           Pos.Wallet.Web.Pending           (mkPendingTx)
+import           Pos.Wallet.Web.Pending.Util      (allPendingAddresssForUtxo)
 import           Pos.Wallet.Web.State             (AddressInfo (..),
                                                    AddressLookupMode (Ever, Existing),
                                                    WAddressMeta, WalletSnapshot,
@@ -71,6 +77,7 @@ import           Pos.Wallet.Web.Util              (decodeCTypeOrFail,
                                                    getAccountAddrsOrThrow,
                                                    getWalletAccountIds,
                                                    getWalletAddrsDetector)
+import           System.IO.Error                  (userError)
 
 newPayment
     :: MonadWalletWebMode m
@@ -93,6 +100,26 @@ newPayment sa passphrase srcAccount dstAccount coin policy =
           (AccountMoneySource srcAccount)
           (one (dstAccount, coin))
           policy
+
+newUnsignedPayment
+    :: MonadWalletWebMode m
+    => SendActions m
+    -> CId Addr
+    -> CId Addr
+    -> Coin
+    -> InputSelectionPolicy
+    -> m Tx
+newUnsignedPayment sa srcAccount dstAccount coin policy =
+    -- This is done for two reasons:
+    -- 1. In order not to overflow relay.
+    -- 2. To let other things (e. g. block processing) happen if
+    -- `newPayment`s are done continuously.
+    notFasterThan (6 :: Second) $ do
+      getUnsignedTx
+        sa
+        srcAccount
+        (one (dstAccount, coin))
+        policy
 
 newPaymentBatch
     :: MonadWalletWebMode m
@@ -277,10 +304,36 @@ sendMoney SendActions{..} passphrase moneySource dstDistr policy = do
 
     logDebug "sendMoney: constructing response"
     fst <$> constructCTx ws' srcWallet srcWalletAddrsDetector diff th
-  where
-     -- TODO eliminate copy-paste
-     listF separator formatter =
-         F.later $ fold . intersperse separator . fmap (F.bprint formatter)
+
+getUnsignedTx
+    :: MonadWalletWebMode m
+    => SendActions m
+    -> CId Addr
+    -> NonEmpty (CId Addr, Coin)
+    -> InputSelectionPolicy
+    -> m Tx
+getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
+    when walletTxCreationDisabled $
+        throwM err405
+        { errReasonPhrase = "Transaction creation is disabled by configuration!"
+        }
+
+    outputs <- coinDistrToOutputs dstDistr
+    srcAddr <- either (throwM . userError . Text.unpack) return $ cIdToAddress cidSrcAddr
+    senderUtxo <- getFilteredUtxo [srcAddr]
+    let pendingAddrs = allPendingAddresssForUtxo senderUtxo
+    tx <- rewrapTxError "Cannot send transaction" $
+                        prepareTx pendingAddrs policy senderUtxo outputs srcAddr
+
+    let dstAddrs = map txOutAddress . toList $ _txOutputs tx
+    logInfoS $
+        sformat ("Successfully created unsigned tx from "%
+                    listF ", " addressF % " addresses on " %
+                    listF ", " addressF)
+        (one srcAddr)
+        dstAddrs
+
+    return tx
 
 sendTxAux
      :: MonadWalletWebMode m
@@ -295,3 +348,8 @@ sendTxAux SendActions{..} txAux = submitAndSave enqueueMsg txAux
 
 notFasterThan :: Second -> WalletWebMode a -> WalletWebMode a
 notFasterThan time action = fst <$> concurrently action (delay time)
+
+listF :: Builder
+      -> F.Format Builder (a -> Builder)
+      -> F.Format r ([a] -> r)
+listF separator formatter = F.later $ fold . intersperse separator . fmap (F.bprint formatter)

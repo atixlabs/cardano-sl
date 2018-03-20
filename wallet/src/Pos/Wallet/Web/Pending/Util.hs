@@ -11,11 +11,13 @@ module Pos.Wallet.Web.Pending.Util
     , isReclaimableFailure
     , usingPtxCoords
     , allPendingAddresses
+    , allPendingAddresssForUtxo
     , nonConfirmedTransactions
     ) where
 
 import           Universum
 
+import qualified Data.Map                       as Map
 import qualified Data.Set                       as Set
 import           Formatting                     (build, sformat, (%))
 
@@ -25,7 +27,7 @@ import           Pos.Core.Types                 (Address)
 import           Pos.Crypto                     (WithHash (..))
 import           Pos.Slotting.Class             (getCurrentSlotInaccurate)
 import           Pos.Txp                        (ToilVerFailure (..), Tx (..), TxAux (..),
-                                                 TxId, TxOut(..), topsortTxs)
+                                                 TxId, TxOutAux (..), TxOut(..), Utxo, topsortTxs)
 import           Pos.Util.Chrono                (OldestFirst (..))
 import           Pos.Util.Util                  (maybeThrow)
 
@@ -108,6 +110,14 @@ allPendingAddresses =
         let (TxAux tx _) = _ptxTxAux
             (UnsafeTx _ outputs _) = tx
             in Set.fromList $ map (\(TxOut a _) -> a) (toList outputs)
+
+allPendingAddresssForUtxo :: Utxo -> PendingAddresses
+allPendingAddresssForUtxo = PendingAddresses . Set.fromList . map grabTxOutput . Map.elems
+  where
+    grabTxOutput :: TxOutAux -> Address
+    grabTxOutput TxOutAux{..} =
+        let (TxOut address _) = toaOut
+        in address
 
 -- | Filters the input '[PendingTx]' to choose only the ones which are not
 -- yet persisted in the blockchain.
