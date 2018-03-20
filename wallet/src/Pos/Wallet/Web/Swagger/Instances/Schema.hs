@@ -67,6 +67,9 @@ instance ToSchema (Digest algo) where
 instance ToSchema UnparsedFields where
   declareNamedSchema _ = pure $ NamedSchema Nothing binarySchema
 
+instance ToSchema XSignature where
+  declareNamedSchema _ = pure $ NamedSchema Nothing binarySchema
+
 instance ToSchema a => ToSchema (Attributes a)
 instance ToSchema      (AbstractHash algo a)
 instance ToSchema      TxIn
@@ -81,7 +84,6 @@ instance ToSchema      Tx
 instance ToSchema      PublicKey
 instance ToSchema      ED.Signature
 instance ToSchema      ED.PublicKey
-instance ToSchema      XSignature
 instance ToSchema      XPub
 deriving instance Generic ChainCode
 instance ToSchema      ChainCode
