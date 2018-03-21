@@ -34,6 +34,8 @@ library
                         Pos.Arbitrary.Delegation
                         Pos.Arbitrary.Txp.Network
 
+                        Test.Pos.Block.Logic.CreationSpec
+
                         Pos.Aeson
                         Pos.Binary
                         Pos.Block.BListener

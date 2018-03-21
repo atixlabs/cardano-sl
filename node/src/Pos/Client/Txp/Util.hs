@@ -123,8 +123,8 @@ data TxError =
 
 isNotEnoughMoneyTxError :: TxError -> Bool
 isNotEnoughMoneyTxError = \case
-    NotEnoughMoney{}        -> True
-    NotEnoughAllowedMoney{} -> True
+    NotEnoughMoney{}        -> False
+    NotEnoughAllowedMoney{} -> False
     _                       -> False
 
 instance Exception TxError
@@ -429,8 +429,8 @@ prepareTxRawWithPicker inputPicker utxo outputs (TxFee fee) = do
     mapM_ (checkIsNotRedeemAddr . txOutAddress . toaOut) outputs
 
     totalMoney <- sumTxOuts outputs
-    when (totalMoney == mkCoin 0) $
-        throwError $ GeneralTxError "Attempted to send 0 money"
+    --when (totalMoney == mkCoin 0) $
+    --    throwError $ GeneralTxError "Attempted to send 0 money"
 
     let moneyToSpent = totalMoney `unsafeAddCoin` fee
     futxo <- either throwError pure $ inputPicker utxo outputs moneyToSpent

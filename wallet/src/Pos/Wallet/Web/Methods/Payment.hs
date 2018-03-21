@@ -15,9 +15,12 @@ import           Universum
 
 import           Control.Exception                (throw)
 import           Control.Monad.Except             (runExcept)
+import qualified Data.Aeson                       as A
 import qualified Data.Map                         as M
 import qualified Data.Text                        as Text
 import           Data.Text.Lazy.Builder           (Builder)
+--import           Data.Text.Lazy.Encoding          (decodeUtf8)
+import           Test.Pos.Block.Logic.CreationSpec (genTxAux)
 import           Data.Time.Units                  (Second)
 import           Formatting                       (sformat, (%))
 import qualified Formatting                       as F
@@ -26,6 +29,7 @@ import           Servant.Server                   (err405, errReasonPhrase)
 import           System.Wlog                      (logDebug)
 
 import           Pos.Aeson.ClientTypes            ()
+import           Pos.Aeson.Txp
 import           Pos.Aeson.WalletBackup           ()
 import           Pos.Client.Txp.Addresses         (MonadAddresses (..))
 import           Pos.Client.Txp.Balances          (getOwnUtxos)
@@ -238,6 +242,9 @@ sendMoney
     -> InputSelectionPolicy
     -> m CTx
 sendMoney SendActions{..} passphrase moneySource dstDistr policy = do
+    logInfoS $ decodeUtf8 $ A.encode $ genTxAux
+
+
     ws <- askWalletSnapshot
     updates <- withTxpLocalData getUtxoModifier
     when walletTxCreationDisabled $
