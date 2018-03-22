@@ -306,7 +306,7 @@ type GetUnsignedTx =
     :> Capture "to" (CId Addr)
     :> Capture "amount" Coin
     :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
-    :> WRes Get Tx
+    :> WRes Post Tx
 
 type TxFee =
        "txs"

@@ -313,6 +313,7 @@ getUnsignedTx
     -> InputSelectionPolicy
     -> m Tx
 getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
+    logInfoS $ sformat("Processing request");
     when walletTxCreationDisabled $
         throwM err405
         { errReasonPhrase = "Transaction creation is disabled by configuration!"
