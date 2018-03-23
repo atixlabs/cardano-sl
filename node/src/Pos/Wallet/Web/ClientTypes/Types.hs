@@ -69,6 +69,7 @@ import qualified Data.Text.Lazy.Encoding     as TE
 import           Pos.Aeson.Types             ()
 import           Pos.Client.Txp.Util         (InputSelectionPolicy)
 import           Pos.Core.Types              (Coin, ScriptVersion)
+import           Pos.Txp.Core                (TxWitness)
 import           Pos.Types                   (BlockVersion, ChainDifficulty, SoftwareVersion)
 import           Pos.Util.BackupPhrase       (BackupPhrase)
 import           Pos.Util.LogSafe            (SecureLog, buildUnsecure)
