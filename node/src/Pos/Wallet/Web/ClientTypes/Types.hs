@@ -48,28 +48,32 @@ module Pos.Wallet.Web.ClientTypes.Types
 
 import           Universum
 
-import           Control.Lens          (makeLenses)
-import           Data.Default          (Default, def)
-import           Data.Hashable         (Hashable (..))
-import           Data.Text             (Text)
+import           Control.Lens                (makeLenses)
+import           Data.Default                (Default, def)
+import           Data.Hashable               (Hashable (..))
+import           Data.Text                   (Text)
 import qualified Data.Text.Buildable
-import           Data.Time.Clock.POSIX (POSIXTime)
-import           Data.Typeable         (Typeable)
-import           Data.Version          (Version)
-import           Formatting            (bprint, build, later, (%))
-import qualified Formatting            as F
+import           Data.Text.Lazy.Builder      (fromLazyText)
+import           Data.Time.Clock.POSIX       (POSIXTime)
+import           Data.Typeable               (Typeable)
+import           Data.Version                (Version)
+import           Formatting                  (bprint, build, later, (%))
+import qualified Formatting                  as F
 import qualified Prelude
-import           Serokell.Util         (mapBuilder)
-import           Servant.Multipart     (FileData)
-import qualified Data.ByteString.Lazy  as BSL
+import           Serokell.Util               (mapBuilder)
+import           Servant.Multipart           (FileData)
+import qualified Data.ByteString.Lazy        as BSL
+import qualified Data.ByteString.Base64.Lazy as B64
+import qualified Data.Text.Lazy.Encoding     as TE
 
-import           Pos.Aeson.Types       ()
-import           Pos.Txp.Core          (TxWitness)
-import           Pos.Client.Txp.Util   (InputSelectionPolicy)
-import           Pos.Core.Types        (Coin, ScriptVersion)
-import           Pos.Types             (BlockVersion, ChainDifficulty, SoftwareVersion)
-import           Pos.Util.BackupPhrase (BackupPhrase)
-import           Pos.Util.LogSafe      (SecureLog, buildUnsecure)
+import           Pos.Aeson.Types             ()
+import           Pos.Client.Txp.Util         (InputSelectionPolicy)
+import           Pos.Core.Types              (Coin, ScriptVersion)
+import           Pos.Txp.Core                (TxWitness)
+import           Pos.Types                   (BlockVersion, ChainDifficulty, SoftwareVersion)
+import           Pos.Util.BackupPhrase       (BackupPhrase)
+import           Pos.Util.LogSafe            (SecureLog, buildUnsecure)
+
 
 -- TODO [CSM-407] Structurize this mess
 
@@ -124,7 +128,7 @@ data CSignedEncTx = CSignedEncTx
   } deriving (Eq, Generic)
 
 instance Buildable CEncodedData where
-  build _ = "<encoded data>"
+  build (CEncodedData bs) = fromLazyText $ TE.decodeUtf8 $ B64.encode bs
 
 instance Buildable CSignedEncTx where
   build (CSignedEncTx encTx txWitness) =
