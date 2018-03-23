@@ -128,7 +128,7 @@ instance Buildable CEncodedData where
 
 instance Buildable CEncTxWithWit where
   build (CEncTxWithWit encTx txWitness) =
-    bprint ("CEncTxWithWit: encodedTx = "%build%", txWitness = { "%build%" }")
+    bprint ("CEncTxWithWit: encodedTx = "%build%", txWitness = [ "%build%" ]")
            encTx txWitness
 
 instance Buildable (SecureLog CEncTxWithWit) where

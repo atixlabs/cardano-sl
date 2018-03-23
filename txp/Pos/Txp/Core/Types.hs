@@ -116,8 +116,9 @@ instance NFData TxInWitness
 type TxWitness = Vector TxInWitness
 
 instance Buildable TxWitness where
-  build v = foldr (\txWit recV -> bprint build txWit `mappend`
-                                  B.fromText ", " `mappend`
+  build v = foldr (\txWit recV -> B.fromText "{ " `mappend`
+                                  bprint build txWit `mappend`
+                                  B.fromText "}, " `mappend`
                                   recV) mempty v
 
 ----------------------------------------------------------------------------
