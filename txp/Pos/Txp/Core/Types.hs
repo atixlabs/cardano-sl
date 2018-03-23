@@ -45,6 +45,7 @@ module Pos.Txp.Core.Types
 import           Control.Lens         (makeLenses, makePrisms)
 import           Data.Hashable        (Hashable)
 import qualified Data.Text.Buildable  as Buildable
+import qualified Data.Text.Lazy.Builder as B
 import           Data.Vector          (Vector)
 import           Formatting           (Format, bprint, build, builder, formatToString,
                                        int, later, sformat, (%))
@@ -113,6 +114,12 @@ instance NFData TxInWitness
 -- spends (by providing signatures, redeeming scripts, etc). A separate proof
 -- is provided for each input.
 type TxWitness = Vector TxInWitness
+
+instance Buildable TxWitness where
+  build v = foldr (\txWit recV -> B.fromText "{ " `mappend`
+                                  bprint build txWit `mappend`
+                                  B.fromText "}, " `mappend`
+                                  recV) mempty v
 
 ----------------------------------------------------------------------------
 -- Tx parts

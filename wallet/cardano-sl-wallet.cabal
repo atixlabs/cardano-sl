@@ -73,6 +73,7 @@ library
                       , ansi-wl-pprint
                       , base
                       , base58-bytestring
+                      , base64-bytestring
                       , binary
                       , bytestring
                       , cardano-crypto
@@ -85,6 +86,7 @@ library
                       , cardano-sl-txp
                       , cardano-sl-update
                       , cardano-sl
+                      , cborg
                       , containers
                       , cryptonite
                       , data-default

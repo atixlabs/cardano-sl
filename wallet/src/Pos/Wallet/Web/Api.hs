@@ -85,10 +85,9 @@ import           Servant.Swagger.UI          (SwaggerSchemaUI)
 import           Universum
 
 -------
-import           Pos.Txp.Core.Types         (TxAux (..))
+import           Pos.Txp.Core.Types         (TxAux (..), TxWitness)
 import           Pos.Client.Txp.Util        (InputSelectionPolicy)
 import           Pos.Types                  (Coin, SoftwareVersion)
-import           Pos.Txp.Core.Types         (Tx (..))
 import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryParam,
                                              CReqBody, DCQueryParam, DReqBody,
                                              HasLoggingServer (..), LoggingApi,
@@ -97,7 +96,7 @@ import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryP
                                              applyLoggingToHandler, inRouteServer,
                                              serverHandlerL')
 import           Pos.Wallet.Web.ClientTypes (Addr, CAccount, CAccountId, CAccountInit,
-                                             CAccountMeta, CAddress, CCoin, CFilePath, ClientInfo,
+                                             CAccountMeta, CAddress, CCoin, CEncodedData, CEncTxWithWit, CFilePath, ClientInfo,
                                              CId, CInitialized, CPaperVendWalletRedeem,
                                              CPassPhrase, CProfile, CTx, CTxId, CTxMeta,
                                              CUpdateInfo, CWallet, CWalletInit,
@@ -306,7 +305,7 @@ type GetUnsignedTx =
     :> Capture "to" (CId Addr)
     :> Capture "amount" Coin
     :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
-    :> WRes Post Tx
+    :> WRes Post CEncodedData
 
 type TxFee =
        "txs"
@@ -357,7 +356,7 @@ type GetPendingTxsSummary =
 type SendSignedTx =
        "txs"
     :> "signed"
-    :> ReqBody '[JSON] TxAux
+    :> ReqBody '[JSON] CEncTxWithWit
     :> WRes Post Bool
 
 

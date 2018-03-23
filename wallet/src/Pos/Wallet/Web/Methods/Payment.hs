@@ -13,8 +13,11 @@ module Pos.Wallet.Web.Methods.Payment
 
 import           Universum
 
+import           Codec.CBOR.Read
 import           Control.Exception                (throw)
 import           Control.Monad.Except             (runExcept)
+import qualified Pos.Binary.Class                 as Bi
+import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.Map                         as M
 import qualified Data.Text                        as Text
 import           Data.Text.Lazy.Builder           (Builder)
@@ -24,9 +27,11 @@ import qualified Formatting                       as F
 import           Mockable                         (concurrently, delay)
 import           Servant.Server                   (err405, errReasonPhrase)
 import           System.Wlog                      (logDebug)
+import qualified Pos.Binary.Class.Primitive       as P
 
 import           Pos.Aeson.ClientTypes            ()
 import           Pos.Aeson.WalletBackup           ()
+import           Pos.Binary.Txp.Core              ()
 import           Pos.Client.Txp.Addresses         (MonadAddresses (..))
 import           Pos.Client.Txp.Balances          (getOwnUtxos)
 import           Pos.Client.Txp.History           (TxHistoryEntry (..))
@@ -46,7 +51,7 @@ import           Pos.Ssc.GodTossing.Configuration (HasGtConfiguration)
 import           Pos.Txp                          (TxFee (..), Utxo, UtxoModifier,
                                                    getUtxoModifier, withTxpLocalData,
                                                    _txOutputs)
-import           Pos.Txp.Core                     (Tx (..), TxAux (..), TxOut (..))
+import           Pos.Txp.Core                     (TxAux (..), TxOut (..), TxWitness)
 import           Pos.Txp.DB.Utxo                  (getFilteredUtxo)
 import           Pos.Update.Configuration         (HasUpdateConfiguration)
 import           Pos.Util                         (eitherToThrow, maybeThrow)
@@ -55,7 +60,8 @@ import           Pos.Wallet.KeyStorage            (getSecretKeys)
 import           Pos.Wallet.Web.Account           (GenSeed (..), getSKByAddressPure,
                                                    getSKById)
 import           Pos.Wallet.Web.ClientTypes       (AccountId (..), Addr, CCoin, CId,
-                                                   CTx (..), NewBatchPayment (..), Wal,
+                                                   CTx (..), NewBatchPayment (..),
+                                                   CEncodedData (..), CEncTxWithWit (..), Wal,
                                                    cIdToAddress, mkCCoin)
 import           Pos.Wallet.Web.Error             (WalletError (..))
 import           Pos.Wallet.Web.Methods.History   (addHistoryTx, constructCTx,
@@ -108,7 +114,7 @@ newUnsignedPayment
     -> CId Addr
     -> Coin
     -> InputSelectionPolicy
-    -> m Tx
+    -> m CEncodedData
 newUnsignedPayment sa srcAccount dstAccount coin policy =
     -- This is done for two reasons:
     -- 1. In order not to overflow relay.
@@ -140,14 +146,19 @@ newPaymentBatch sa passphrase NewBatchPayment {..} = do
 sendSignedTx
      :: MonadWalletWebMode m
      => SendActions m
-     -> TxAux
+     -> CEncTxWithWit
      -> m Bool
-sendSignedTx sa txAux =
-    -- This is done for two reasons:
-    -- 1. In order not to overflow relay.
-    -- 2. To let other things (e. g. block processing) happen if
-    -- `newPayment`s are done continuously.
-    notFasterThan (6 :: Second) $ sendTxAux sa txAux
+sendSignedTx sa (CEncTxWithWit (CEncodedData encodedTx) txWitness) = do
+    let maybeTx = P.decodeFull $ BSL.toStrict encodedTx
+        maybeTxAux = flip TxAux txWitness <$> maybeTx
+    case maybeTxAux of
+      Right txAux ->
+        -- This is done for two reasons:
+        -- 1. In order not to overflow relay.
+        -- 2. To let other things (e. g. block processing) happen if
+        -- `newPayment`s are done continuously.
+        notFasterThan (6 :: Second) $ sendTxAux sa txAux
+      Left e -> return False
 
 getTxFee
      :: MonadWalletWebMode m
@@ -311,7 +322,7 @@ getUnsignedTx
     -> CId Addr
     -> NonEmpty (CId Addr, Coin)
     -> InputSelectionPolicy
-    -> m Tx
+    -> m CEncodedData
 getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
     logInfoS $ sformat("Processing request");
     when walletTxCreationDisabled $
@@ -333,8 +344,8 @@ getUnsignedTx SendActions{..} cidSrcAddr dstDistr policy = do
                     listF ", " addressF)
         (one srcAddr)
         dstAddrs
-
-    return tx
+    let encodedTx = CEncodedData (P.serialize tx)
+    return encodedTx
 
 sendTxAux
      :: MonadWalletWebMode m
