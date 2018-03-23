@@ -61,7 +61,7 @@ import           Pos.Wallet.Web.Account           (GenSeed (..), getSKByAddressP
                                                    getSKById)
 import           Pos.Wallet.Web.ClientTypes       (AccountId (..), Addr, CCoin, CId,
                                                    CTx (..), NewBatchPayment (..),
-                                                   CEncodedData (..), CEncTxWithWit (..), Wal,
+                                                   CEncodedData (..), CSignedEncTx (..), Wal,
                                                    cIdToAddress, mkCCoin)
 import           Pos.Wallet.Web.Error             (WalletError (..))
 import           Pos.Wallet.Web.Methods.History   (addHistoryTx, constructCTx,
@@ -146,9 +146,9 @@ newPaymentBatch sa passphrase NewBatchPayment {..} = do
 sendSignedTx
      :: MonadWalletWebMode m
      => SendActions m
-     -> CEncTxWithWit
+     -> CSignedEncTx
      -> m Bool
-sendSignedTx sa (CEncTxWithWit (CEncodedData encodedTx) txWitness) = do
+sendSignedTx sa (CSignedEncTx (CEncodedData encodedTx) txWitness) = do
     let maybeTx = P.decodeFull $ BSL.toStrict encodedTx
         maybeTxAux = flip TxAux txWitness <$> maybeTx
     case maybeTxAux of
@@ -158,7 +158,7 @@ sendSignedTx sa (CEncTxWithWit (CEncodedData encodedTx) txWitness) = do
         -- 2. To let other things (e. g. block processing) happen if
         -- `newPayment`s are done continuously.
         notFasterThan (6 :: Second) $ sendTxAux sa txAux
-      Left e -> return False
+      Left _ -> return False
 
 getTxFee
      :: MonadWalletWebMode m

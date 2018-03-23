@@ -96,7 +96,7 @@ import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryP
                                              applyLoggingToHandler, inRouteServer,
                                              serverHandlerL')
 import           Pos.Wallet.Web.ClientTypes (Addr, CAccount, CAccountId, CAccountInit,
-                                             CAccountMeta, CAddress, CCoin, CEncodedData, CEncTxWithWit, CFilePath, ClientInfo,
+                                             CAccountMeta, CAddress, CCoin, CEncodedData, CSignedEncTx, CFilePath, ClientInfo,
                                              CId, CInitialized, CPaperVendWalletRedeem,
                                              CPassPhrase, CProfile, CTx, CTxId, CTxMeta,
                                              CUpdateInfo, CWallet, CWalletInit,
@@ -356,7 +356,7 @@ type GetPendingTxsSummary =
 type SendSignedTx =
        "txs"
     :> "signed"
-    :> ReqBody '[JSON] CEncTxWithWit
+    :> ReqBody '[JSON] CSignedEncTx
     :> WRes Post Bool
 
 
