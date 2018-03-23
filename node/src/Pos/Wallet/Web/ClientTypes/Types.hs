@@ -13,6 +13,7 @@ module Pos.Wallet.Web.ClientTypes.Types
       , CPwHash
       , CTx (..)
       , CEncodedData (..)
+      , CSignedEncTx (..)
       , CTxId (..)
       , NewBatchPayment (..)
       , CTxMeta (..)
@@ -72,6 +73,7 @@ import           Pos.Types                   (BlockVersion, ChainDifficulty, Sof
 import           Pos.Util.BackupPhrase       (BackupPhrase)
 import           Pos.Util.LogSafe            (SecureLog, buildUnsecure)
 
+
 -- TODO [CSM-407] Structurize this mess
 
 data SyncProgress = SyncProgress
@@ -119,8 +121,21 @@ instance Show CPassPhrase where
 newtype CEncodedData = CEncodedData BSL.ByteString
     deriving (Eq, Generic)
 
+data CSignedEncTx = CSignedEncTx
+  { encodedTx :: CEncodedData
+  , txWitness :: TxWitness
+  } deriving (Eq, Generic)
+
 instance Buildable CEncodedData where
   build (CEncodedData bs) = fromLazyText $ TE.decodeUtf8 $ B64.encode bs
+
+instance Buildable CSignedEncTx where
+  build (CSignedEncTx encTx txWitness) =
+    bprint ("CSignedEncTx: encodedTx = "%build%", txWitness = [ "%build%" ]")
+           encTx txWitness
+
+instance Buildable (SecureLog CSignedEncTx) where
+  build = buildUnsecure
 
 ----------------------------------------------------------------------------
 -- Wallet

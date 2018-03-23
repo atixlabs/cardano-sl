@@ -12,6 +12,7 @@ import           Data.Version                 (showVersion)
 import qualified Data.ByteString.Base64.Lazy  as B64
 import qualified Data.Text.Lazy.Encoding      as TE
 
+import           Pos.Aeson.Txp                ()
 import           Pos.Client.Txp.Util          (InputSelectionPolicy(..))
 import           Pos.Core.Types               (SoftwareVersion (..))
 import           Pos.Util.BackupPhrase        (BackupPhrase)
@@ -24,7 +25,7 @@ import           Pos.Wallet.Web.ClientTypes   (Addr, ApiVersion (..), CAccount,
                                                CWallet, CWalletAssurance, CWalletInit,
                                                CWalletMeta, CWalletRedeem,
                                                ClientInfo (..), NewBatchPayment (..),
-                                               CEncodedData (..), SyncProgress, Wal)
+                                               CEncodedData (..), CSignedEncTx (..), SyncProgress, Wal)
 import           Pos.Wallet.Web.Error         (WalletError)
 import           Pos.Wallet.Web.Sockets.Types (NotifyEvent)
 
@@ -76,6 +77,7 @@ deriveJSON defaultOptions ''CTxId
 deriveJSON defaultOptions ''CAddress
 deriveJSON defaultOptions ''CAccount
 deriveJSON defaultOptions ''CWallet
+deriveJSON defaultOptions ''CSignedEncTx
 deriveJSON defaultOptions ''CPtxCondition
 deriveJSON defaultOptions ''CTx
 deriveJSON defaultOptions ''CTExMeta
@@ -131,3 +133,16 @@ instance ToJSON NewBatchPayment where
 
 instance ToJSON CEncodedData where
   toJSON (CEncodedData bs) = String $ toStrict $ TE.decodeUtf8 $ B64.encode bs
+
+
+instance FromJSON CEncodedData where
+  parseJSON (String encodedData) = fromRawEncodedData encodedData
+
+fromRawEncodedData :: Text -> Parser CEncodedData
+fromRawEncodedData rawEncodedData = do
+  let lazyRawEncData = fromStrict rawEncodedData
+      utf8EncRawData = TE.encodeUtf8 $ lazyRawEncData
+      maybeBase64DecRaw = B64.decode $ utf8EncRawData
+  case maybeBase64DecRaw of
+    Right base64DecRaw -> pure $ CEncodedData $ base64DecRaw
+    Left e -> fail e

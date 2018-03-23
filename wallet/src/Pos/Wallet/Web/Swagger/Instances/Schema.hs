@@ -150,6 +150,7 @@ instance ToSchema      CT.ApiVersion
 instance ToSchema      Version
 instance ToSchema      CT.ClientInfo
 instance ToSchema      CT.CEncodedData
+instance ToSchema      CT.CSignedEncTx
 
 instance ToSchema WalletStateSnapshot where
     declareNamedSchema _ = pure $ NamedSchema (Just "WalletStateSnapshot") mempty

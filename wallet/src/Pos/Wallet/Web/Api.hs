@@ -85,7 +85,7 @@ import           Servant.Swagger.UI          (SwaggerSchemaUI)
 import           Universum
 
 -------
-import           Pos.Txp.Core.Types         (TxAux (..))
+import           Pos.Txp.Core.Types         (TxAux (..), TxWitness)
 import           Pos.Client.Txp.Util        (InputSelectionPolicy)
 import           Pos.Types                  (Coin, SoftwareVersion)
 import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryParam,
@@ -96,13 +96,13 @@ import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryP
                                              applyLoggingToHandler, inRouteServer,
                                              serverHandlerL')
 import           Pos.Wallet.Web.ClientTypes (Addr, CAccount, CAccountId, CAccountInit,
-                                             CAccountMeta, CAddress, CCoin, CFilePath, ClientInfo,
+                                             CAccountMeta, CAddress, CCoin, CEncodedData, CSignedEncTx, CFilePath, ClientInfo,
                                              CId, CInitialized, CPaperVendWalletRedeem,
                                              CPassPhrase, CProfile, CTx, CTxId, CTxMeta,
                                              CUpdateInfo, CWallet, CWalletInit,
                                              CWalletMeta, CWalletRedeem, ScrollLimit,
                                              ScrollOffset, NewBatchPayment,
-                                             SyncProgress, Wal, CEncodedData)
+                                             SyncProgress, Wal)
 import           Pos.Wallet.Web.Error       (WalletError (DecodeError),
                                              catchEndpointErrors)
 import           Pos.Wallet.Web.Methods.Misc (PendingTxsSummary, WalletStateSnapshot)
@@ -356,7 +356,7 @@ type GetPendingTxsSummary =
 type SendSignedTx =
        "txs"
     :> "signed"
-    :> ReqBody '[JSON] TxAux
+    :> ReqBody '[JSON] CSignedEncTx
     :> WRes Post Bool
 
 
