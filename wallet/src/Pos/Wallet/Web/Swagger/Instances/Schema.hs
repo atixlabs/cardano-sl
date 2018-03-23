@@ -20,7 +20,8 @@ import           Data.Swagger                (NamedSchema (..), SwaggerType (..)
                                               sketchSchema, type_)
 import           Data.Swagger.Internal.Schema
 import           GHC.Generics
-import qualified Data.ByteString as BS
+import qualified Data.ByteString             as BS
+import qualified Data.ByteString.Lazy        as LBS
 import           Data.Typeable               (Typeable, typeRep)
 import           Data.Version                (Version)
 import           Crypto.Hash                 (Digest)
@@ -59,6 +60,9 @@ import           Pos.Wallet.Web.Methods.Misc (PendingTxsSummary, WalletStateSnap
 -- | This orphan instance prevents Generic-based deriving mechanism
 -- to use 'ToSchema' 'ByteString' and instead defaults to 'binarySchema'.
 instance GToSchema (K1 i BS.ByteString) where
+  gdeclareNamedSchema _ _ _ = pure $ NamedSchema Nothing binarySchema
+
+instance GToSchema (K1 i LBS.ByteString) where
   gdeclareNamedSchema _ _ _ = pure $ NamedSchema Nothing binarySchema
 
 instance ToSchema (Digest algo) where
@@ -145,6 +149,7 @@ instance ToSchema      CT.CFilePath
 instance ToSchema      CT.ApiVersion
 instance ToSchema      Version
 instance ToSchema      CT.ClientInfo
+instance ToSchema      CT.CEncodedData
 
 instance ToSchema WalletStateSnapshot where
     declareNamedSchema _ = pure $ NamedSchema (Just "WalletStateSnapshot") mempty

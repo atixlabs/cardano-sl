@@ -9,6 +9,8 @@ import           Data.Aeson                   (FromJSON (..), ToJSON (..), Value
 import           Data.Aeson.Types             (Parser, typeMismatch)
 import           Data.Aeson.TH                (defaultOptions, deriveJSON, deriveToJSON)
 import           Data.Version                 (showVersion)
+import qualified Data.ByteString.Base64.Lazy  as B64
+import qualified Data.Text.Lazy.Encoding      as TE
 
 import           Pos.Client.Txp.Util          (InputSelectionPolicy(..))
 import           Pos.Core.Types               (SoftwareVersion (..))
@@ -22,7 +24,7 @@ import           Pos.Wallet.Web.ClientTypes   (Addr, ApiVersion (..), CAccount,
                                                CWallet, CWalletAssurance, CWalletInit,
                                                CWalletMeta, CWalletRedeem,
                                                ClientInfo (..), NewBatchPayment (..),
-                                               SyncProgress, Wal)
+                                               CEncodedData (..), SyncProgress, Wal)
 import           Pos.Wallet.Web.Error         (WalletError)
 import           Pos.Wallet.Web.Sockets.Types (NotifyEvent)
 
@@ -126,3 +128,6 @@ instance ToJSON NewBatchPayment where
                 [ "address" .= address
                 , "amount" .= amount
                 ]
+
+instance ToJSON CEncodedData where
+  toJSON (CEncodedData bs) = String $ toStrict $ TE.decodeUtf8 $ B64.encode bs

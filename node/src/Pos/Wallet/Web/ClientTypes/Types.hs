@@ -12,6 +12,7 @@ module Pos.Wallet.Web.ClientTypes.Types
       , CProfile (..)
       , CPwHash
       , CTx (..)
+      , CEncodedData (..)
       , CTxId (..)
       , NewBatchPayment (..)
       , CTxMeta (..)
@@ -59,6 +60,7 @@ import qualified Formatting            as F
 import qualified Prelude
 import           Serokell.Util         (mapBuilder)
 import           Servant.Multipart     (FileData)
+import qualified Data.ByteString.Lazy  as BSL
 
 import           Pos.Aeson.Types       ()
 import           Pos.Client.Txp.Util   (InputSelectionPolicy)
@@ -109,6 +111,13 @@ newtype CPassPhrase = CPassPhrase Text
 
 instance Show CPassPhrase where
     show _ = "<pass phrase>"
+
+-- | CBOR-encoded data.
+newtype CEncodedData = CEncodedData BSL.ByteString
+    deriving (Eq, Generic)
+
+instance Buildable CEncodedData where
+  build _ = "<encoded data>"
 
 ----------------------------------------------------------------------------
 -- Wallet

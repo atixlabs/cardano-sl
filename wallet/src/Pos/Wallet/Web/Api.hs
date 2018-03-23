@@ -88,7 +88,6 @@ import           Universum
 import           Pos.Txp.Core.Types         (TxAux (..))
 import           Pos.Client.Txp.Util        (InputSelectionPolicy)
 import           Pos.Types                  (Coin, SoftwareVersion)
-import           Pos.Txp.Core.Types         (Tx (..))
 import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryParam,
                                              CReqBody, DCQueryParam, DReqBody,
                                              HasLoggingServer (..), LoggingApi,
@@ -103,7 +102,7 @@ import           Pos.Wallet.Web.ClientTypes (Addr, CAccount, CAccountId, CAccoun
                                              CUpdateInfo, CWallet, CWalletInit,
                                              CWalletMeta, CWalletRedeem, ScrollLimit,
                                              ScrollOffset, NewBatchPayment,
-                                             SyncProgress, Wal)
+                                             SyncProgress, Wal, CEncodedData)
 import           Pos.Wallet.Web.Error       (WalletError (DecodeError),
                                              catchEndpointErrors)
 import           Pos.Wallet.Web.Methods.Misc (PendingTxsSummary, WalletStateSnapshot)
@@ -306,7 +305,7 @@ type GetUnsignedTx =
     :> Capture "to" (CId Addr)
     :> Capture "amount" Coin
     :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
-    :> WRes Get Tx
+    :> WRes Get CEncodedData
 
 type TxFee =
        "txs"

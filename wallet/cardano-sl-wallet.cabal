@@ -73,6 +73,7 @@ library
                       , ansi-wl-pprint
                       , base
                       , base58-bytestring
+                      , base64-bytestring
                       , binary
                       , bytestring
                       , cardano-crypto
