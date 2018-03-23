@@ -13,6 +13,7 @@ module Pos.Wallet.Web.ClientTypes.Types
       , CPwHash
       , CTx (..)
       , CEncodedData (..)
+      , CEncTxWithWit (..)
       , CTxId (..)
       , NewBatchPayment (..)
       , CTxMeta (..)
@@ -63,6 +64,7 @@ import           Servant.Multipart     (FileData)
 import qualified Data.ByteString.Lazy  as BSL
 
 import           Pos.Aeson.Types       ()
+import           Pos.Txp.Core          (TxWitness)
 import           Pos.Client.Txp.Util   (InputSelectionPolicy)
 import           Pos.Core.Types        (Coin, ScriptVersion)
 import           Pos.Types             (BlockVersion, ChainDifficulty, SoftwareVersion)
@@ -116,8 +118,21 @@ instance Show CPassPhrase where
 newtype CEncodedData = CEncodedData BSL.ByteString
     deriving (Eq, Generic)
 
+data CEncTxWithWit = CEncTxWithWit
+  { encodedTx :: CEncodedData
+  , txWitness :: TxWitness
+  } deriving (Eq, Generic)
+
 instance Buildable CEncodedData where
   build _ = "<encoded data>"
+
+instance Buildable CEncTxWithWit where
+  build (CEncTxWithWit encTx txWitness) =
+    bprint ("CEncTxWithWit: encodedTx = "%build%", txWitness = { "%build%" }")
+           encTx txWitness
+
+instance Buildable (SecureLog CEncTxWithWit) where
+  build = buildUnsecure
 
 ----------------------------------------------------------------------------
 -- Wallet
