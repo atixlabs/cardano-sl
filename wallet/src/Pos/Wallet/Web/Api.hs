@@ -85,7 +85,6 @@ import           Servant.Swagger.UI          (SwaggerSchemaUI)
 import           Universum
 
 -------
-import           Pos.Txp.Core.Types         (TxAux (..), TxWitness)
 import           Pos.Client.Txp.Util        (InputSelectionPolicy)
 import           Pos.Types                  (Coin, SoftwareVersion)
 import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryParam,

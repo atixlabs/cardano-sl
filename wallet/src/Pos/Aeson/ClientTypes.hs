@@ -5,7 +5,7 @@ module Pos.Aeson.ClientTypes
 import           Universum
 
 import           Data.Aeson                   (FromJSON (..), ToJSON (..), Value(..), object,
-                                               withArray, withObject, (.:), (.=))
+                                               withArray, withObject, withText, (.:), (.=))
 import           Data.Aeson.Types             (Parser, typeMismatch)
 import           Data.Aeson.TH                (defaultOptions, deriveJSON, deriveToJSON)
 import           Data.Version                 (showVersion)
@@ -136,7 +136,7 @@ instance ToJSON CEncodedData where
 
 
 instance FromJSON CEncodedData where
-  parseJSON (String encodedData) = fromRawEncodedData encodedData
+  parseJSON = withText "String" fromRawEncodedData
 
 fromRawEncodedData :: Text -> Parser CEncodedData
 fromRawEncodedData rawEncodedData = do

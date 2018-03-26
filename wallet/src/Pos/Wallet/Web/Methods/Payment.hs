@@ -13,10 +13,8 @@ module Pos.Wallet.Web.Methods.Payment
 
 import           Universum
 
-import           Codec.CBOR.Read
 import           Control.Exception                (throw)
 import           Control.Monad.Except             (runExcept)
-import qualified Pos.Binary.Class                 as Bi
 import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.Map                         as M
 import qualified Data.Text                        as Text
@@ -51,7 +49,7 @@ import           Pos.Ssc.GodTossing.Configuration (HasGtConfiguration)
 import           Pos.Txp                          (TxFee (..), Utxo, UtxoModifier,
                                                    getUtxoModifier, withTxpLocalData,
                                                    _txOutputs)
-import           Pos.Txp.Core                     (TxAux (..), TxOut (..), TxWitness)
+import           Pos.Txp.Core                     (TxAux (..), TxOut (..))
 import           Pos.Txp.DB.Utxo                  (getFilteredUtxo)
 import           Pos.Update.Configuration         (HasUpdateConfiguration)
 import           Pos.Util                         (eitherToThrow, maybeThrow)
