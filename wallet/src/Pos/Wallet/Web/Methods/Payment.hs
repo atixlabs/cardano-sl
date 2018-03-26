@@ -8,6 +8,7 @@ module Pos.Wallet.Web.Methods.Payment
        , newPaymentBatch
        , newUnsignedPayment
        , getTxFee
+       , getTxFeeUntracked
        , sendSignedTx
        ) where
 
@@ -176,6 +177,22 @@ getTxFee srcAccount dstAccount coin policy = do
     TxFee fee <- rewrapTxError "Cannot compute transaction fee" $
         eitherToThrow =<< runTxCreator policy (computeTxFee pendingAddrs utxo outputs)
     pure $ mkCCoin fee
+
+getTxFeeUntracked
+    :: MonadWalletWebMode m
+    => CId Addr
+    -> CId Addr
+    -> Coin
+    -> InputSelectionPolicy
+    -> m CCoin
+getTxFeeUntracked cidSrcAddr dstAccount coin policy = do
+   outputs <- coinDistrToOutputs $ one (dstAccount, coin)
+   srcAddr <- either (throwM . userError . Text.unpack) return $ cIdToAddress cidSrcAddr
+   senderUtxo <- getFilteredUtxo [srcAddr]
+   let pendingAddrs = allPendingAddresssForUtxo senderUtxo
+   TxFee fee <- rewrapTxError "Cannot compute transaction fee" $
+       eitherToThrow =<< runTxCreator policy (computeTxFee pendingAddrs senderUtxo outputs)
+   pure $ mkCCoin fee
 
 data MoneySource
     = WalletMoneySource (CId Wal)

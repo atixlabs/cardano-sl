@@ -147,6 +147,11 @@ instance HasCustomSwagger TxFee where
         "Estimate fees for performing given transaction. \
         \Transaction will not be created."
 
+instance HasCustomSwagger TxFeeUntracked where
+    swaggerModifier = modifyDescription
+        "Estimate fees for performing given transaction. \
+        \Transaction will not be created."
+
 instance HasCustomSwagger UpdateTx where
     swaggerModifier = modifyDescription
         "Update payment transaction."

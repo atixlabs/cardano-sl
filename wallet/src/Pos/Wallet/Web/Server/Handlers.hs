@@ -9,7 +9,8 @@ module Pos.Wallet.Web.Server.Handlers
 import           Universum
 
 import           Pos.Communication          (SendActions (..))
-import           Pos.Txp                    (getLocalTxs, getLocalUndos, withTxpLocalData)
+import           Pos.Txp                    (getLocalTxs, getLocalUndos,
+                                             withTxpLocalData)
 import           Pos.Update.Configuration   (curSoftwareVersion)
 import           Pos.Wallet.WalletMode      (blockchainSlotDuration)
 import           Pos.Wallet.Web.Account     (GenSeed (RandomSeed))
@@ -76,6 +77,8 @@ servantHandlers sendActions =
      M.newUnsignedPayment sendActions
     :<|>
      M.getTxFee
+    :<|>
+     M.getTxFeeUntracked
     :<|>
      M.cancelAllApplyingPtxs
     :<|>

@@ -42,6 +42,7 @@ module Pos.Wallet.Web.Api
        , NewPayment
        , NewPaymentBatch
        , TxFee
+       , TxFeeUntracked
        , CancelApplyingPtxs
        , CancelSpecificApplyingPtx
        , UpdateTx
@@ -316,6 +317,15 @@ type TxFee =
     :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
     :> WRes Post CCoin
 
+type TxFeeUntracked =
+       "txs"
+    :> "feeUntracked"
+    :> Capture "from" (CId Addr)
+    :> Capture "to" (CId Addr)
+    :> Capture "amount" Coin
+    :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
+    :> WRes Post CCoin
+
 type UpdateTx =
        "txs"
     :> "payments"
@@ -524,6 +534,8 @@ type WalletApi = ApiPrefix :> (
      GetUnsignedTx
     :<|>
      TxFee
+    :<|>
+     TxFeeUntracked
     :<|>
      CancelApplyingPtxs
     :<|>
