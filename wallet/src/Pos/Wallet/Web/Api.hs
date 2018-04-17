@@ -49,7 +49,7 @@ import           Servant.Generic ((:-), AsApi, ToServant)
 import           Servant.Swagger.UI (SwaggerSchemaUI)
 
 import           Pos.Client.Txp.Util (InputSelectionPolicy)
-import           Pos.Core (Coin, SoftwareVersion)
+import           Pos.Core (Coin, SoftwareVersion, TxAux)
 import           Pos.Util.Servant (ApiLoggingConfig, CCapture, CQueryParam, CReqBody, DCQueryParam,
                                    DReqBody, LoggingApi, ModifiesApiRes (..),
                                    ReportDecodeError (..), VerbMod, serverHandlerL')
@@ -388,7 +388,7 @@ data WTxsApiRecord route = WTxsApiRecord
   , _sendSignedTx :: route
     :- "signed"
     :> ReqBody '[JSON] CSignedEncTx
-    :> WRes Post Bool
+    :> WRes Post TxAux
   }
   deriving (Generic)
 

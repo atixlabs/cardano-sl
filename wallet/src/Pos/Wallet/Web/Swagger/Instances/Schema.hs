@@ -30,8 +30,8 @@ import           Pos.Core (AddrAttributes (..), AddrStakeDistribution (..), Addr
                            Address (..), ApplicationName, BlockCount (..), BlockVersion,
                            ChainDifficulty, Coin, CoinPortion (..), Script (..), SlotCount (..),
                            SoftwareVersion, mkCoin)
-import           Pos.Core.Txp (TxIn (..), TxInWitness (..), TxOut (..), TxOutAux (..),
-                               TxSigData (..))
+import           Pos.Core.Txp (Tx (..), TxAux (..), TxIn (..), TxInWitness (..), TxOut (..),
+                               TxOutAux (..), TxSigData (..))
 import           Pos.Crypto.Hashing (AbstractHash (..))
 import           Pos.Crypto.HD (HDAddressPayload (..))
 import           Pos.Crypto.Signing (PublicKey (..), RedeemPublicKey, RedeemSignature (..),
@@ -70,6 +70,8 @@ instance ToSchema      (AbstractHash algo a)
 instance ToSchema      TxIn
 instance ToSchema      TxOut
 instance ToSchema      TxOutAux
+instance ToSchema      Tx
+instance ToSchema      TxAux
 instance ToSchema      Address
 instance ToSchema      HDAddressPayload
 instance ToSchema      AddrStakeDistribution

@@ -129,18 +129,21 @@ getTxFee srcAccount dstAccount coin policy = do
 sendSignedTx
      :: MonadWalletTxFull ctx m
      => CSignedEncTx
-     -> m Bool
+     -> m TxAux
 sendSignedTx (CSignedEncTx (CEncodedData encodedTx) txWitness) = do
     let maybeTx    = Bi.decodeFull $ BSL.toStrict encodedTx
         maybeTxAux = flip TxAux txWitness <$> maybeTx
     case maybeTxAux of
-      Right txAux ->
+      Right txAux -> do
         -- This is done for two reasons:
         -- 1. In order not to overflow relay.
         -- 2. To let other things (e. g. block processing) happen if
         -- `newPayment`s are done continuously.
-        notFasterThan (6 :: Second) $ sendTxAux txAux
-      Left _ -> return False
+        accepted <- notFasterThan (6 :: Second) $ sendTxAux txAux
+        unless accepted $ throwM (RequestError "Tx not accepted by peers")
+        return txAux
+      Left _ ->
+        throwM (RequestError "Tx can't be decoded")
 
 data MoneySource
     = WalletMoneySource (CId Wal)
