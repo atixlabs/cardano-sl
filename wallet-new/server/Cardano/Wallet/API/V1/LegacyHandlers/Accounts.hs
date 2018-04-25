@@ -18,13 +18,13 @@ import           Servant
 
 handlers
     :: (HasCompileInfo, HasConfigurations)
-    => WalletId -> ServerT Accounts.API MonadV1
-handlers walletId =
-          deleteAccount walletId
-    :<|>  getAccount walletId
-    :<|>  listAccounts walletId
-    :<|>  newAccount walletId
-    :<|>  updateAccount walletId
+    => ServerT Accounts.API MonadV1
+handlers =
+         deleteAccount
+    :<|> getAccount
+    :<|> listAccounts
+    :<|> newAccount
+    :<|> updateAccount
 
 deleteAccount
     :: (V0.MonadWalletLogic ctx m)
@@ -41,11 +41,14 @@ getAccount wId accIdx =
 listAccounts
     :: (MonadThrow m, V0.MonadWalletLogicRead ctx m)
     => WalletId -> RequestParams -> m (WalletResponse [Account])
-listAccounts wId params =
-    let accounts = migrate wId >>= V0.getAccounts . Just >>= migrate @[V0.CAccount] @[Account]
-    in respondWith params (NoFilters :: FilterOperations Account)
-                          (NoSorts :: SortOperations Account)
-                          (IxSet.fromList <$> accounts)
+listAccounts wId params = do
+    wid' <- migrate wId
+    oldAccounts <- V0.getAccounts (Just wid')
+    newAccounts <- migrate @[V0.CAccount] @[Account] oldAccounts
+    respondWith params
+        (NoFilters :: FilterOperations Account)
+        (NoSorts :: SortOperations Account)
+        (IxSet.fromList <$> pure newAccounts)
 
 newAccount
     :: (V0.MonadWalletLogic ctx m)

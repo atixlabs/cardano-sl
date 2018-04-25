@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 module Pos.Diffusion.Full
     ( diffusionLayerFull
@@ -10,9 +11,13 @@ module Pos.Diffusion.Full
 import           Nub (ordNub)
 import           Universum
 
+import qualified Control.Concurrent.Async as Async
+import qualified Control.Concurrent.STM as STM
+import           Control.Exception (Exception, throwIO)
 import           Control.Monad.Fix (MonadFix)
 import qualified Data.Map as M
-import           Data.Time.Units (Millisecond, Second, convertUnit)
+import qualified Data.Map.Strict as MS
+import           Data.Time.Units (Microsecond, Millisecond, Second, convertUnit)
 import           Formatting (Format)
 import           Mockable (withAsync, link)
 import qualified Network.Broadcast.OutboundQueue as OQ
@@ -32,10 +37,9 @@ import           Pos.Communication (NodeId, VerInfo (..), PeerData, PackingType,
                                     makeSendActions, SendActions, Msg)
 import           Pos.Communication.Relay.Logic (invReqDataFlowTK)
 import           Pos.Communication.Util (wrapListener)
-import           Pos.Configuration (HasNodeConfiguration, conversationEstablishTimeout)
-import           Pos.Core (BlockVersionData (..), BlockVersion, HeaderHash, ProxySKHeavy, StakeholderId)
+import           Pos.Core (BlockVersionData (..), BlockVersion, HeaderHash, ProxySKHeavy,
+                           StakeholderId, ProtocolConstants (..))
 import           Pos.Core.Block (Block, BlockHeader, MainBlockHeader)
-import           Pos.Core.Configuration (protocolMagic)
 import           Pos.Core.Ssc (Opening, InnerSharesMap, SignedCommitment, VssCertificate)
 import           Pos.Core.Txp (TxAux)
 import           Pos.Core.Update (UpId, UpdateProposal, UpdateVote)
@@ -52,7 +56,8 @@ import qualified Pos.Diffusion.Full.Update as Diffusion.Update
 import           Pos.Diffusion.Subscription.Common (subscriptionListeners)
 import           Pos.Diffusion.Subscription.Dht (dhtSubscriptionWorker)
 import           Pos.Diffusion.Subscription.Dns (dnsSubscriptionWorker)
-import           Pos.Diffusion.Types (Diffusion (..), DiffusionLayer (..))
+import           Pos.Diffusion.Types (Diffusion (..) , DiffusionLayer (..), SubscriptionStatus)
+                                      
 import           Pos.Logic.Types (Logic (..))
 import           Pos.Network.Types (NetworkConfig (..), Topology (..), Bucket (..), initQueue,
                                     topologySubscribers, SubscriptionWorker (..),
@@ -82,33 +87,46 @@ diffusionLayerFull
        , MonadMask m
        , WithLogger m
        )
-    => NetworkConfig KademliaParams
+    => (forall y . d y -> IO y)
+    -> NetworkConfig KademliaParams
     -> BlockVersion -- For making the VerInfo.
+    -> ProtocolMagic
+    -> ProtocolConstants -- Certain protocol constants affect networking (accidental/historical; will fix soon).
+    -> Word
     -> Transport d
     -> Maybe (EkgNodeMetrics d)
     -> ((Logic d -> m (DiffusionLayer d)) -> m x)
     -> m x
-diffusionLayerFull networkConfig lastKnownBlockVersion transport mEkgNodeMetrics expectLogic =
+diffusionLayerFull runIO networkConfig lastKnownBlockVersion protocolMagic protocolConstants recoveryHeadersMessage transport mEkgNodeMetrics expectLogic =
     bracket acquire release $ \_ -> expectLogic $ \logic -> do
 
         -- Make the outbound queue using network policies.
+        -- NB: the <> is under 'LoggerName', which is representationally equal
+        -- to 'Text' but its semigroup instance adds a '.' in-between.
+        -- The result: the outbound queue will log under the
+        -- ["diffusion", "outboundqueue"] hierarchy via log-warper.
         oq :: OQ.OutboundQ (EnqueuedConversation d) NodeId Bucket <-
-            initQueue networkConfig (enmStore <$> mEkgNodeMetrics)
+            initQueue networkConfig ("diffusion" <> "outboundqueue") (enmStore <$> mEkgNodeMetrics)
+
+        -- Subscription status.
+        subscriptionStatus <- newTVarIO MS.empty
 
         -- Timer is in microseconds.
         keepaliveTimer :: Timer <- newTimer $ convertUnit (20 :: Second)
 
         let -- VerInfo is a diffusion-layer-specific thing. It's only used for
             -- negotiating with peers.
+            --
+            -- Known bug: if the block version changes, the VerInfo will be
+            -- out of date, as it's immutable.
+            -- Solution: don't put it in the VerInfo. Other clients don't need
+            -- to know the peer's latest adopted block version, they need only
+            -- know what software version its running.
             ourVerInfo :: VerInfo
-            -- TODO pull protocol magic from an explicit configuration argument
-            -- rather than from a magic Data.Reflection instance.
-            -- The lastKnownBlockVersion can go into that configuration record
-            -- as well. Goal: eliminate all Has*Configuration constraints from
-            -- full diffusion layer.
-            -- Ah but that won't be so easy, because serialization instances
-            -- currently depend on these... so defer it for later.
-            ourVerInfo = VerInfo (getProtocolMagic protocolMagic) lastKnownBlockVersion ins (outs <> workerOuts)
+            ourVerInfo = VerInfo (getProtocolMagic protocolMagic)
+                                 lastKnownBlockVersion
+                                 ins
+                                 (outs <> workerOuts)
 
             ins :: HandlerSpecs
             InSpecs ins = inSpecs mkL
@@ -202,7 +220,7 @@ diffusionLayerFull networkConfig lastKnownBlockVersion transport mEkgNodeMetrics
 
             mkL :: MkListeners d
             mkL = mconcat $
-                [ lmodifier "block"       $ Diffusion.Block.blockListeners logic oq keepaliveTimer
+                [ lmodifier "block"       $ Diffusion.Block.blockListeners logic protocolConstants recoveryHeadersMessage oq keepaliveTimer
                 , lmodifier "tx"          $ Diffusion.Txp.txListeners logic oq enqueue
                 , lmodifier "update"      $ Diffusion.Update.updateListeners logic oq enqueue
                 , lmodifier "delegation"  $ Diffusion.Delegation.delegationListeners logic oq enqueue
@@ -225,36 +243,56 @@ diffusionLayerFull networkConfig lastKnownBlockVersion transport mEkgNodeMetrics
             currentSlotDuration :: d Millisecond
             currentSlotDuration = bvdSlotDuration <$> getAdoptedBVData logic
 
+            convEstablishTimeout :: Microsecond
+            convEstablishTimeout = convertUnit (15 :: Second)
+
             -- Bracket kademlia and network-transport, create a node. This
             -- will be very involved. Should make it top-level I think.
             runDiffusionLayer :: forall y . d y -> d y
             runDiffusionLayer = runDiffusionLayerFull
+                runIO
                 networkConfig
                 transport
+                convEstablishTimeout
                 ourVerInfo
                 mEkgNodeMetrics
                 oq
                 keepaliveTimer
                 currentSlotDuration
+                subscriptionStatus
                 listeners
 
             enqueue :: EnqueueMsg d
-            enqueue = makeEnqueueMsg ourVerInfo $ \msgType k -> do
+            enqueue = makeEnqueueMsg ourVerInfo $ \msgType k -> liftIO $ do
                 itList <- OQ.enqueue oq msgType (EnqueuedConversation (msgType, k))
                 let itMap = M.fromList itList
-                return ((>>= either throwM return) <$> itMap)
+                    -- FIXME this is duplicated.
+                    -- Define once, perhaps in cardano-sl-infra near the
+                    -- definition of EnqueueMsg.
+                    waitOnIt :: STM.TVar (OQ.PacketStatus a) -> d a
+                    waitOnIt tvar = liftIO $ do
+                        it <- STM.atomically $ do
+                                  status <- STM.readTVar tvar
+                                  case status of
+                                      OQ.PacketEnqueued        -> STM.retry
+                                      OQ.PacketAborted         -> return Nothing
+                                      OQ.PacketDequeued thread -> return (Just thread)
+                        case it of
+                            Nothing -> throwIO Aborted
+                            Just thread -> Async.wait thread
+                return (waitOnIt <$> itMap)
 
             getBlocks :: NodeId
                       -> BlockHeader
                       -> [HeaderHash]
                       -> d (OldestFirst [] Block)
-            getBlocks = Diffusion.Block.getBlocks logic enqueue
+            getBlocks = Diffusion.Block.getBlocks logic recoveryHeadersMessage enqueue
 
             requestTip :: (BlockHeader -> NodeId -> d t) -> d (Map NodeId (d t))
-            requestTip = Diffusion.Block.requestTip enqueue
+            requestTip = Diffusion.Block.requestTip logic enqueue
 
             announceBlockHeader :: MainBlockHeader -> d ()
-            announceBlockHeader = void . Diffusion.Block.announceBlockHeader logic enqueue
+            announceBlockHeader = void . Diffusion.Block.announceBlockHeader logic protocolConstants recoveryHeadersMessage enqueue
 
             sendTx :: TxAux -> d Bool
             sendTx = Diffusion.Txp.sendTx enqueue
@@ -293,7 +331,7 @@ diffusionLayerFull networkConfig lastKnownBlockVersion transport mEkgNodeMetrics
             healthStatus = topologyHealthStatus (ncTopology networkConfig) oq
 
             formatPeers :: forall r . (forall a . Format r a -> a) -> d (Maybe r)
-            formatPeers formatter = Just <$> OQ.dumpState oq formatter
+            formatPeers formatter = liftIO $ (Just <$> OQ.dumpState oq formatter)
 
             diffusion :: Diffusion d
             diffusion = Diffusion {..}
@@ -310,20 +348,23 @@ diffusionLayerFull networkConfig lastKnownBlockVersion transport mEkgNodeMetrics
 runDiffusionLayerFull
     :: forall d x .
        ( DiffusionWorkMode d, MonadFix d )
-    => NetworkConfig KademliaParams
+    => (forall y . d y -> IO y)
+    -> NetworkConfig KademliaParams
     -> Transport d
+    -> Microsecond -- ^ Conversation establish timeout
     -> VerInfo
     -> Maybe (EkgNodeMetrics d)
     -> OQ.OutboundQ (EnqueuedConversation d) NodeId Bucket
     -> Timer -- ^ Keepalive timer.
     -> d Millisecond -- ^ Slot duration; may change over time.
+    -> TVar (MS.Map NodeId SubscriptionStatus) -- ^ Subscription status.
     -> (VerInfo -> [Listener d])
     -> d x
     -> d x
-runDiffusionLayerFull networkConfig transport ourVerInfo mEkgNodeMetrics oq keepaliveTimer slotDuration listeners action =
+runDiffusionLayerFull runIO networkConfig transport convEstablishTimeout ourVerInfo mEkgNodeMetrics oq keepaliveTimer slotDuration subscriptionStatus listeners action =
     bracketKademlia networkConfig $ \networkConfig' ->
-        timeWarpNode transport ourVerInfo listeners $ \nd converse ->
-            withAsync (OQ.dequeueThread oq (sendMsgFromConverse converse)) $ \dthread -> do
+        timeWarpNode transport convEstablishTimeout ourVerInfo listeners $ \nd converse ->
+            withAsync (liftIO $ OQ.dequeueThread oq (sendMsgFromConverse runIO converse)) $ \dthread -> do
                 link dthread
                 case mEkgNodeMetrics of
                     Just ekgNodeMetrics -> registerEkgNodeMetrics ekgNodeMetrics nd
@@ -339,32 +380,55 @@ runDiffusionLayerFull networkConfig transport ourVerInfo mEkgNodeMetrics oq keep
   where
     oqEnqueue :: Msg -> (NodeId -> VerInfo -> Conversation PackingType d t) -> d (Map NodeId (d t))
     oqEnqueue msgType k = do
-        itList <- OQ.enqueue oq msgType (EnqueuedConversation (msgType, k))
+        itList <- liftIO $ OQ.enqueue oq msgType (EnqueuedConversation (msgType, k))
         let itMap = M.fromList itList
-        return ((>>= either throwM return) <$> itMap)
+            -- Wait on the TVar until it's either aborted or dequeued.
+            -- If it's aborted, throw an exception (TBD consider giving
+            -- Nothing instead?) and if it's dequeued, wait on the thread.
+            -- FIXME we'll want to refine this a bit. Callers should be able
+            -- to get a hold of the Async instead.
+            waitOnIt :: STM.TVar (OQ.PacketStatus a) -> d a
+            waitOnIt tvar = liftIO $ do
+                it <- STM.atomically $ do
+                          status <- STM.readTVar tvar
+                          case status of
+                              OQ.PacketEnqueued        -> STM.retry
+                              OQ.PacketAborted         -> return Nothing
+                              OQ.PacketDequeued thread -> return (Just thread)
+                case it of
+                    Nothing -> throwIO Aborted
+                    Just thread -> Async.wait thread
+        return (waitOnIt <$> itMap)
     subscriptionThread nc sactions = case topologySubscriptionWorker (ncTopology nc) of
         Just (SubscriptionWorkerBehindNAT dnsDomains) ->
-            dnsSubscriptionWorker oq networkConfig dnsDomains keepaliveTimer slotDuration sactions
+            dnsSubscriptionWorker oq networkConfig dnsDomains keepaliveTimer slotDuration subscriptionStatus sactions
         Just (SubscriptionWorkerKademlia kinst nodeType valency fallbacks) ->
             dhtSubscriptionWorker oq kinst nodeType valency fallbacks sactions
         Nothing -> pure ()
 
+data Aborted = Aborted
+  deriving (Show)
+
+instance Exception Aborted
+
 sendMsgFromConverse
-    :: Converse PackingType PeerData d
-    -> OQ.SendMsg d (EnqueuedConversation d) NodeId
-sendMsgFromConverse converse (EnqueuedConversation (_, k)) nodeId =
-    converseWith converse nodeId (k nodeId)
+    :: (forall x . d x -> IO x)
+    -> Converse PackingType PeerData d
+    -> OQ.SendMsg (EnqueuedConversation d) NodeId
+sendMsgFromConverse runIO converse (EnqueuedConversation (_, k)) nodeId =
+    runIO $ converseWith converse nodeId (k nodeId)
 
 -- | Bring up a time-warp node. It will come down when the continuation ends.
 timeWarpNode
     :: forall d t .
        ( DiffusionWorkMode d, MonadFix d )
     => Transport d
+    -> Microsecond -- Timeout.
     -> VerInfo
     -> (VerInfo -> [Listener d])
     -> (Node d -> Converse PackingType PeerData d -> d t)
     -> d t
-timeWarpNode transport ourVerInfo listeners k = do
+timeWarpNode transport convEstablishTimeout ourVerInfo listeners k = do
     stdGen <- liftIO newStdGen
     node mkTransport mkReceiveDelay mkConnectDelay stdGen bipPacking ourVerInfo nodeEnv $ \theNode ->
         NodeAction listeners $ k theNode
@@ -372,14 +436,14 @@ timeWarpNode transport ourVerInfo listeners k = do
     mkTransport = simpleNodeEndPoint transport
     mkReceiveDelay = const (pure Nothing)
     mkConnectDelay = const (pure Nothing)
-    nodeEnv = defaultNodeEnvironment { nodeAckTimeout = conversationEstablishTimeout }
+    nodeEnv = defaultNodeEnvironment { nodeAckTimeout = convEstablishTimeout }
 
 ----------------------------------------------------------------------------
 -- Kademlia
 ----------------------------------------------------------------------------
 
 createKademliaInstance ::
-       (HasNodeConfiguration, MonadIO m, MonadCatch m, CanLog m)
+       (MonadIO m, MonadCatch m, CanLog m)
     => KademliaParams
     -> Word16 -- ^ Default port to bind to.
     -> m KademliaDHTInstance
@@ -391,7 +455,7 @@ createKademliaInstance kp defaultPort =
 
 -- | RAII for 'KademliaDHTInstance'.
 bracketKademliaInstance
-    :: (HasNodeConfiguration, MonadIO m, MonadMask m, CanLog m)
+    :: (MonadIO m, MonadMask m, CanLog m)
     => KademliaParams
     -> Word16 -- ^ Default port to bind to.
     -> (KademliaDHTInstance -> m a)
@@ -402,7 +466,7 @@ bracketKademliaInstance kp defaultPort action =
 -- | The 'NodeParams' contain enough information to determine whether a Kademlia
 -- instance should be brought up. Use this to safely acquire/release one.
 bracketKademlia
-    :: (HasNodeConfiguration, MonadIO m, MonadMask m, CanLog m)
+    :: (MonadIO m, MonadMask m, CanLog m)
     => NetworkConfig KademliaParams
     -> (NetworkConfig KademliaDHTInstance -> m a)
     -> m a
