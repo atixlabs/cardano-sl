@@ -90,6 +90,11 @@ let
       mkDerivation = args: super.mkDerivation (args // {
         enableLibraryProfiling = enableProfiling;
         enableExecutableProfiling = enableProfiling;
+        # Static linking for everything to work around
+        # https://ghc.haskell.org/trac/ghc/ticket/14444
+        # This will be the default in nixpkgs since
+        # https://github.com/NixOS/nixpkgs/issues/29011
+        enableSharedExecutables = false;
       } // optionalAttrs enableDebugging {
         # TODO: DEVOPS-355
         dontStrip = true;
@@ -105,6 +110,9 @@ let
     in
       args: pkgs.callPackage ./scripts/launch/connect-to-cluster (args // { inherit gitrev; } // walletConfig );
   other = rec {
+    demoCluster = pkgs.callPackage ./scripts/launch/demo-cluster { inherit gitrev; };
+    walletIntegrationTests = pkgs.callPackage ./scripts/test/wallet/integration { inherit gitrev; };
+    buildWalletIntegrationTests = pkgs.callPackage ./scripts/test/wallet/integration/build-test.nix { inherit walletIntegrationTests pkgs; };
     cardano-sl-explorer-frontend = (import ./explorer/frontend {
       inherit system config gitrev pkgs;
       cardano-sl-explorer = cardanoPkgs.cardano-sl-explorer-static;
@@ -113,8 +121,8 @@ let
     stack2nix = import (pkgs.fetchFromGitHub {
       owner = "input-output-hk";
       repo = "stack2nix";
-      rev = "486a88f161a08df8af42cb4c84f44e99fa9a98d8";
-      sha256 = "0nskf1s51np320ijlf38sxmksk68xmg14cnarg1p9rph03y81m7w";
+      rev = "abd199510eb38c442e14fd82677f9cc1f7430cfb";
+      sha256 = "0rrawm054n9r45jvxmdzwkfl1mvar2wag8nvhqzf3ggnbcds2aj2";
     }) { inherit pkgs; };
     inherit (pkgs) purescript;
     connectScripts = {
@@ -122,6 +130,7 @@ let
       mainnetExplorer = connect { executable = "explorer"; };
       mainnetBlockchainImporter = connect { executable = "blockchain-importer"; };
       stagingWallet = connect { environment = "mainnet-staging"; };
+      demoWallet = connect { environment = "demo"; };
       stagingExplorer = connect { executable = "explorer"; environment = "mainnet-staging"; };
       stagingBlockchainImporter = connect { executable = "blockchain-importer"; environment = "mainnet-staging"; };
     };

@@ -133,6 +133,7 @@ library
                       , data-default
                       , directory
                       , dlist
+                      , ekg-core
                       , ether
                       , exceptions
                       , filepath
@@ -144,6 +145,7 @@ library
                       , memory
                       , monad-control
                       , mtl
+                      , node-ipc
                       , quickcheck-instances
                       , random
                       , reflection
@@ -179,6 +181,7 @@ library
   ghc-options:         -Wall
                        -fno-warn-orphans
                        -O2
+                       -fwarn-redundant-constraints
 
   default-extensions:   DeriveDataTypeable
                         DeriveGeneric
@@ -250,9 +253,11 @@ test-suite cardano-wallet-test
                      , cardano-sl-txp
                      , cardano-sl-update
                      , cardano-sl-util
+                     , cardano-sl-util-test
                      , cardano-sl-wallet
                      , containers
                      , data-default
+                     , ekg-core
                      , ether
                      , formatting
                      , hspec

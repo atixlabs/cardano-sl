@@ -113,7 +113,7 @@ blockchainImporterServeImpl
     => m Application
     -> Word16
     -> m ()
-blockchainImporterServeImpl app port = serveImpl loggingApp "*" port Nothing Nothing
+blockchainImporterServeImpl app port = serveImpl loggingApp "*" port Nothing Nothing Nothing
   where
     loggingApp = logStdoutDev <$> app
 

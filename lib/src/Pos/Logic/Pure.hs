@@ -7,7 +7,7 @@ module Pos.Logic.Pure
 
 import           Universum
 
-import           Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import           Data.Coerce (coerce)
 import           Data.Default (def)
 
@@ -45,7 +45,7 @@ pureLogic = Logic
     , getBlockHeader     = \_ -> pure (Just blockHeader)
     , getHashesRange     = \_ _ _ -> pure (Right (OldestFirst (pure mainBlockHeaderHash)))
     , getBlockHeaders    = \_ _ _ -> pure (Right (NewestFirst (pure blockHeader)))
-    , getLcaMainChain    = \_ -> pure Nothing
+    , getLcaMainChain    = \_ -> pure (OldestFirst [])
     , getTip             = pure block
     , getTipHeader       = pure blockHeader
     , getAdoptedBVData   = pure blockVersionData
@@ -221,9 +221,10 @@ slotId = SlotId
     , siSlot  = UnsafeLocalSlotIndex { getSlotIndex = 0 }
     }
 
+-- Trivia: the seed has to be at least 32 bytes.
 publicKey :: PublicKey
 secretKey :: SecretKey
-(publicKey, secretKey) = deterministicKeyGen (mempty :: ByteString)
+(publicKey, secretKey) = deterministicKeyGen (BS.pack (replicate 32 0))
 
 chainDifficulty :: ChainDifficulty
 chainDifficulty = ChainDifficulty

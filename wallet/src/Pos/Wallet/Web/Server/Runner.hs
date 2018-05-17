@@ -23,9 +23,8 @@ import           Mockable (Production, runProduction)
 import           Network.Wai (Application)
 import           Ntp.Client (NtpStatus)
 import           Servant.Server (Handler)
-import           System.Wlog (logInfo)
+import           System.Wlog (logInfo, usingLoggerName)
 
-import           Pos.Communication (ActionSpec (..), OutSpecs)
 import           Pos.Context (NodeContext (..))
 import           Pos.Diffusion.Types (Diffusion)
 import           Pos.Launcher.Configuration (HasConfigurations)
@@ -45,6 +44,8 @@ import           Pos.Wallet.Web.State (WalletDB)
 import           Pos.Wallet.Web.Tracking.Types (SyncQueue)
 import           Pos.Web (TlsParams)
 import           Pos.WorkMode (RealMode)
+import           Cardano.NodeIPC (startNodeJsIPC)
+import           Pos.Shutdown.Class        (HasShutdownContext (shutdownContext))
 
 -- | 'WalletWebMode' runner.
 runWRealMode
@@ -56,21 +57,18 @@ runWRealMode
     -> ConnectionsVar
     -> SyncQueue
     -> NodeResources WalletMempoolExt
-    -> (ActionSpec WalletWebMode a, OutSpecs)
+    -> (Diffusion WalletWebMode -> WalletWebMode a)
     -> Production a
-runWRealMode db conn syncRequests res (action, outSpecs) =
+runWRealMode db conn syncRequests res action =
     elimRealMode res serverRealMode
   where
     NodeContext {..} = nrContext res
-    ekgNodeMetrics = EkgNodeMetrics
-        (nrEkgStore res)
-        (runProduction . elimRealMode res . walletWebModeToRealMode db conn syncRequests)
+    ekgNodeMetrics = EkgNodeMetrics (nrEkgStore res)
     serverWalletWebMode :: WalletWebMode a
     serverWalletWebMode = runServer
         (runProduction . elimRealMode res . walletWebModeToRealMode db conn syncRequests)
         ncNodeParams
         ekgNodeMetrics
-        outSpecs
         action
     serverRealMode :: RealMode WalletMempoolExt a
     serverRealMode = walletWebModeToRealMode db conn syncRequests serverWalletWebMode
@@ -81,12 +79,16 @@ walletServeWebFull
        )
     => Diffusion WalletWebMode
     -> TVar NtpStatus
-    -> Bool                    -- whether to include genesis keys
+    -> Bool                    -- ^ whether to include genesis keys
     -> NetworkAddress          -- ^ IP and Port to listen
     -> Maybe TlsParams
     -> WalletWebMode ()
-walletServeWebFull diffusion ntpStatus debug address mTlsParams =
-    walletServeImpl action address mTlsParams Nothing
+walletServeWebFull diffusion ntpStatus debug address mTlsParams = do
+    ctx <- view shutdownContext
+    let
+      portCallback :: Word16 -> IO ()
+      portCallback port = usingLoggerName "NodeIPC" $ flip runReaderT ctx $ startNodeJsIPC port
+    walletServeImpl action address mTlsParams Nothing (Just portCallback)
   where
     action :: WalletWebMode Application
     action = do
@@ -115,7 +117,7 @@ convertHandler wwmc handler =
     excHandlers = [E.Handler catchServant]
     catchServant = throwError
 
-notifierPlugin :: (HasConfigurations, HasCompileInfo) => WalletWebMode ()
+notifierPlugin :: (HasConfigurations) => WalletWebMode ()
 notifierPlugin = do
     wwmc <- walletWebModeContext
     launchNotifier (convertHandler wwmc)
