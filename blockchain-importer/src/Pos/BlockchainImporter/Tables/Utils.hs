@@ -9,7 +9,6 @@ module Pos.BlockchainImporter.Tables.Utils
 
 import           Universum
 
-import           Data.List.NonEmpty (NonEmpty (..))
 import           Database.PostgreSQL.Simple ()
 import qualified Database.PostgreSQL.Simple as PGS
 import           Formatting (sformat)
@@ -43,6 +42,6 @@ runUpsertMany conn table columns keyCol = sum <$> mapM insertSingle columns
   where insertSingle = runUpsertSingle conn table keyCol
 
 runUpsertSingle :: PGS.Connection -> O.Table columns columns' -> String -> columns -> IO Int64
-runUpsertSingle conn table keyCol column = PGS.execute_ conn . fromString $ strUpsertQuery (column :| [])
-  where strInsertQuery col = O.arrangeInsertManySql table col
+runUpsertSingle conn table keyCol column = PGS.execute_ conn . fromString $ strUpsertQuery column
+  where strInsertQuery col = O.arrangeInsertSql table col
         strUpsertQuery col = (strInsertQuery col)  ++ " ON CONFLICT (" ++ keyCol  ++ ") DO NOTHING"
