@@ -9,6 +9,7 @@ module Pos.BlockchainImporter.Tables.Utils
 
 import           Universum
 
+import           Data.List.NonEmpty (NonEmpty (..))
 import           Database.PostgreSQL.Simple ()
 import qualified Database.PostgreSQL.Simple as PGS
 import           Formatting (sformat)
@@ -38,9 +39,10 @@ coinToInt64 = fromIntegral . getCoin
     [1] https://github.com/tomjaguarpaw/haskell-opaleye/pull/385#issuecomment-384313025
 -}
 runUpsertMany :: PGS.Connection -> O.Table columns columns' -> [columns] -> String -> IO Int64
-runUpsertMany conn table columns keyCol = case nonEmpty columns of
-    Just neColumns -> PGS.execute_ conn . fromString $ strUpsertQuery neColumns
-    Nothing        -> return 0
+runUpsertMany conn table columns keyCol = sum <$> mapM insertSingle columns
+  where insertSingle = runUpsertSingle conn table keyCol
+
+runUpsertSingle :: PGS.Connection -> O.Table columns columns' -> String -> columns -> IO Int64
+runUpsertSingle conn table keyCol column = PGS.execute_ conn . fromString $ strUpsertQuery (column :| [])
   where strInsertQuery col = O.arrangeInsertManySql table col
         strUpsertQuery col = (strInsertQuery col)  ++ " ON CONFLICT (" ++ keyCol  ++ ") DO NOTHING"
-
