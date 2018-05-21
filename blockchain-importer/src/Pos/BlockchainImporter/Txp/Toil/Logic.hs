@@ -70,7 +70,7 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     let getTxWithExtra = \(i, (txAux, txUndo)) -> ((taTx txAux), TxExtra (Just (hh, i)) mTxTimestamp txUndo) 
     liftIO $ TxsT.insertTxs postGresDB (getTxWithExtra <$> zip [0..] txun) blockHeight
 
-    pure $ blockchainImporterExtraMToEGlobalToilM $ mapM_ applier $ zip [0..] txun
+    pure $ sequence_ $ (toilApplyUTxO:) $ blockchainImporterExtraMToEGlobalToilM . applier <$> zip [0..] txun
   where
     applier :: (Word32, (TxAux, TxUndo)) -> BlockchainImporterExtraM ()
     applier (i, (txAux, txUndo)) = do
