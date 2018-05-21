@@ -8,6 +8,7 @@
 module Pos.BlockchainImporter.Tables.TxsTable
   ( -- * Data manipulation
     insertTx
+  , insertTxs
   , deleteTx
   ) where
 
@@ -20,7 +21,7 @@ import qualified Database.PostgreSQL.Simple as PGS
 import           Opaleye
 
 import           Pos.BlockchainImporter.Core (TxExtra (..))
-import qualified Pos.BlockchainImporter.Tables.TxAddrTable as TAT (insertTxAddresses)
+import qualified Pos.BlockchainImporter.Tables.TxAddrTable as TAT
 import           Pos.BlockchainImporter.Tables.Utils
 import           Pos.Core (timestampToUTCTimeL)
 import           Pos.Core.Txp (Tx (..), TxOut (..), TxOutAux (..))
@@ -69,6 +70,12 @@ insertTx conn tx txExtra blockHeight = do
   insertTxToHistory conn tx txExtra blockHeight
   TAT.insertTxAddresses conn tx txExtra
 
+-- | Inserts a given list of txs into the Tx history tables.
+insertTxs :: PGS.Connection -> [(Tx,TxExtra)] -> Word64 -> IO ()
+insertTxs conn txs blockHeight = do
+  insertTxsToHistory conn txs blockHeight
+  TAT.insertTxsAddresses conn txs
+
 -- | Inserts the basic info of a given Tx into the master Tx history table.
 insertTxToHistory :: PGS.Connection -> Tx -> TxExtra -> Word64 -> IO ()
 insertTxToHistory conn tx txExtra blockHeight = void $ runUpsertMany conn txsTable [row] "hash"
@@ -85,6 +92,26 @@ insertTxToHistory conn tx txExtra blockHeight = void $ runUpsertMany conn txsTab
                 , trTime          = maybeToNullable utcTime
                 }
     utcTime = pgUTCTime . (^. timestampToUTCTimeL) <$> teReceivedTime txExtra
+
+toRecord :: Word64 -> Tx -> TxExtra -> TxRowPGW
+toRecord blockHeight tx txExtra = row
+  where
+    inputs  = toaOut <$> (catMaybes $ NE.toList $ teInputOutputs txExtra)
+    outputs = NE.toList $ _txOutputs tx
+    row = TxRow { trHash          = pgString $ hashToString (hash tx)
+                , trInputsAddr    = pgArray (pgString . addressToString . txOutAddress) inputs
+                , trInputsAmount  = pgArray (pgInt8 . coinToInt64 . txOutValue) inputs
+                , trOutputsAddr   = pgArray (pgString . addressToString . txOutAddress) outputs
+                , trOutputsAmount = pgArray (pgInt8 . coinToInt64 . txOutValue) outputs
+                , trBlockNum      = pgInt8 $ fromIntegral blockHeight
+                  -- FIXME: Tx time should never be None at this stage
+                , trTime          = maybeToNullable utcTime
+                }
+    utcTime = pgUTCTime . (^. timestampToUTCTimeL) <$> teReceivedTime txExtra
+
+-- | Inserts the basic info of a given Tx into the master Tx history table.
+insertTxsToHistory :: PGS.Connection -> [(Tx, TxExtra)] -> Word64 -> IO ()
+insertTxsToHistory conn txs blockHeight = void $ runUpsertMany conn txsTable (uncurry (toRecord blockHeight) <$> txs) "hash"
 
 -- | Deletes a Tx by Tx hash from the Tx history tables.
 deleteTx :: PGS.Connection -> Tx -> IO ()

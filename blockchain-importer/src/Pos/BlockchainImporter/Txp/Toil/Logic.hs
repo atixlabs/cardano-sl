@@ -67,24 +67,22 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     liftIO $ UT.applyModifierToUtxos postGresDB $ applyUTxOModifier txun
 
     -- Update tx history
-    let appliersM = zipWithM (curry applier) [0..] txun
-    sequence_ . (toilApplyUTxO:) . (map blockchainImporterExtraMToEGlobalToilM) <$> appliersM
+    let getTxWithExtra = \(i, (txAux, txUndo)) -> ((taTx txAux), TxExtra (Just (hh, i)) mTxTimestamp txUndo) 
+    liftIO $ TxsT.insertTxs postGresDB (getTxWithExtra <$> zip [0..] txun) blockHeight
+
+    pure $ blockchainImporterExtraMToEGlobalToilM $ mapM_ applier $ zip [0..] txun
   where
-    applier :: (Word32, (TxAux, TxUndo)) -> m (BlockchainImporterExtraM ())
+    applier :: (Word32, (TxAux, TxUndo)) -> BlockchainImporterExtraM ()
     applier (i, (txAux, txUndo)) = do
         let tx = taTx txAux
             id = hash tx
             newExtra = TxExtra (Just (hh, i)) mTxTimestamp txUndo
 
-        liftIO $ TxsT.insertTx postGresDB tx newExtra blockHeight
-
-        let keyValueDBUpdate = do
-                  extra <- fromMaybe newExtra <$> getTxExtra id
-                  putTxExtraWithHistory id extra $ getTxRelatedAddrs txAux txUndo
-                  let balanceUpdate = getBalanceUpdate txAux txUndo
-                  updateAddrBalances balanceUpdate
-                  updateUtxoSumFromBalanceUpdate balanceUpdate
-        pure keyValueDBUpdate
+        extra <- fromMaybe newExtra <$> getTxExtra id
+        putTxExtraWithHistory id extra $ getTxRelatedAddrs txAux txUndo
+        let balanceUpdate = getBalanceUpdate txAux txUndo
+        updateAddrBalances balanceUpdate
+        updateUtxoSumFromBalanceUpdate balanceUpdate
 
 -- | Rollback transactions from one block.
 eRollbackToil ::

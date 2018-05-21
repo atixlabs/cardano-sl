@@ -8,6 +8,7 @@
 module Pos.BlockchainImporter.Tables.TxAddrTable
   ( -- * Data manipulation
     insertTxAddresses
+  , insertTxsAddresses
   ) where
 
 import           Universum
@@ -20,7 +21,7 @@ import qualified Database.PostgreSQL.Simple as PGS
 import           Opaleye
 
 import           Pos.BlockchainImporter.Core (TxExtra (..))
-import           Pos.BlockchainImporter.Tables.Utils (addressToString, hashToString)
+import           Pos.BlockchainImporter.Tables.Utils
 import           Pos.Core.Common (Address)
 import           Pos.Core.Txp (Tx (..), TxOut (..), TxOutAux (..))
 import           Pos.Crypto (hash)
@@ -56,3 +57,16 @@ insertTxAddresses conn tx txExtra = void $ runInsertMany conn txAddressesTable r
     receivers = txOutAddress <$> (NE.toList $ _txOutputs tx)
     rows      = makeRows $ L.nub $ senders ++ receivers
     makeRows  = map (makeRowPGW txHash)
+
+toRecords :: Tx -> TxExtra -> [ TxAddrRowPGW ]
+toRecords tx txExtra = rows
+   where
+    txHash    = hashToString (hash tx)
+    senders   = txOutAddress . toaOut <$> (catMaybes $ NE.toList $ teInputOutputs txExtra)
+    receivers = txOutAddress <$> (NE.toList $ _txOutputs tx)
+    rows      = makeRows $ L.nub $ senders ++ receivers
+    makeRows  = map (makeRowPGW txHash)
+
+-- | Inserts the senders and receivers of a given Tx into the Tx addresses table.
+insertTxsAddresses :: PGS.Connection -> [(Tx, TxExtra)] -> IO ()
+insertTxsAddresses conn txs = void $ runInsertMany conn txAddressesTable (concat $ uncurry toRecords <$> txs)
