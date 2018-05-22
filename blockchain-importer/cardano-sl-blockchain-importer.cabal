@@ -179,6 +179,7 @@ executable cardano-blockchain-importer
                      , cardano-sl-networking
                      , cardano-sl-update
                      , cardano-sl-util
+                     , data-default
                      , formatting
                      , log-warper
                      , optparse-applicative

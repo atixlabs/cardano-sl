@@ -11,6 +11,7 @@ module Main
 
 import           Universum
 
+import           Data.Default (Default (def))
 import           Data.Maybe (fromJust)
 import qualified Database.PostgreSQL.Simple as PGS
 import           Mockable (Production, runProduction)
@@ -61,7 +62,7 @@ action (BlockchainImporterNodeArgs (cArgs@CommonNodeArgs{..}) BlockchainImporter
     withConfigurations conf $ \ntpConfig -> do
       conn <- liftIO $ PGS.connect postGresConfig
       withPostGresDB conn $
-        withCompileInfo $(retrieveCompileTimeInfo) $ do
+        withCompileInfo def $ do
             CLI.printInfoOnStart cArgs ntpConfig
             logInfo "Blockchain importer is enabled!"
             currentParams <- getNodeParams loggerName cArgs nodeArgs
