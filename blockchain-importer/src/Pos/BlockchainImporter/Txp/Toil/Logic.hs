@@ -281,8 +281,8 @@ rollbackUTxOModifier txs = mconcat $ rollbackSingleModifier <$> reverse txs
 
 -- Returns the UxtoModifier corresponding to rollbacking a single tx
 rollbackSingleModifier :: (TxAux, TxUndo) -> Txp.UtxoModifier
-rollbackSingleModifier (txAux, txUndo) = foldr  MM.delete
-                                                (foldr (uncurry MM.insert) mempty toInsert)
+rollbackSingleModifier (txAux, txUndo) = foldl' (flip MM.delete)
+                                                (foldl' (flip $ uncurry MM.insert) mempty toInsert)
                                                 toDelete
   where tx       = taTx txAux
         id       = hash tx
