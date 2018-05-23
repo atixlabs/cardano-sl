@@ -27,13 +27,13 @@ import           Pos.Core.Txp (Tx (..), TxOut (..), TxOutAux (..))
 import           Pos.Crypto (hash)
 
 
-data TxRowPoly h iAddrs iAmts oAddrs oAmts bn t = TxRow   { trHash          :: h
-                                                          , trInputsAddr    :: iAddrs
-                                                          , trInputsAmount  :: iAmts
-                                                          , trOutputsAddr   :: oAddrs
-                                                          , trOutputsAmount :: oAmts
-                                                          , trBlockNum      :: bn
-                                                          , trTime          :: t
+data TxRowPoly h iAddrs iAmts oAddrs oAmts bn t = TxRow   { trHash          :: !h
+                                                          , trInputsAddr    :: !iAddrs
+                                                          , trInputsAmount  :: !iAmts
+                                                          , trOutputsAddr   :: !oAddrs
+                                                          , trOutputsAmount :: !oAmts
+                                                          , trBlockNum      :: !bn
+                                                          , trTime          :: !t
                                                           } deriving (Show)
 
 type TxRowPGW = TxRowPoly (Column PGText)

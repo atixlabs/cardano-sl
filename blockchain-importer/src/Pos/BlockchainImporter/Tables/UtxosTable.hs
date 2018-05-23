@@ -1,4 +1,5 @@
 {-# LANGUAGE Arrows                #-}
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -21,11 +22,11 @@ import           Pos.Core.Txp (TxIn (..), TxOut (..), TxOutAux (..))
 import           Pos.Txp.Toil.Types (UtxoModifier)
 import qualified Pos.Util.Modifier as MM
 
-data UtxoRowPoly a b c d e = UtxoRow  { urUtxoId   :: a
-                                      , urTxHash   :: b
-                                      , urTxIndex  :: c
-                                      , urReceiver :: d
-                                      , urAmount   :: e
+data UtxoRowPoly a b c d e = UtxoRow  { urUtxoId   :: !a
+                                      , urTxHash   :: !b
+                                      , urTxIndex  :: !c
+                                      , urReceiver :: !d
+                                      , urAmount   :: !e
                                       } deriving (Show)
 
 type UtxoRowPGW = UtxoRowPoly (Column PGText) (Column PGText) (Column PGInt4) (Column PGText) (Column PGInt8)
@@ -59,7 +60,7 @@ toRecord _ _ = Nothing
 -- | Applies a UtxoModifier to the UTxOs in the table
 applyModifierToUtxos :: PGS.Connection -> UtxoModifier -> IO ()
 applyModifierToUtxos conn modifier = do
-  let toInsert = catMaybes $ (uncurry toRecord) <$> MM.insertions modifier
-      toDelete = (pgString . txId) <$> MM.deletions modifier
+  let !toInsert = catMaybes $ (uncurry toRecord) <$> MM.insertions modifier
+      !toDelete = (pgString . txId) <$> MM.deletions modifier
   void $ runUpsertMany conn utxosTable toInsert "utxo_id"
   void $ runDelete conn utxosTable $ \(UtxoRow sId _ _ _ _) -> in_ toDelete sId

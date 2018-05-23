@@ -25,8 +25,8 @@ import           Pos.Core.Common (Address)
 import           Pos.Core.Txp (Tx (..), TxOut (..), TxOutAux (..))
 import           Pos.Crypto (hash)
 
-data TxAddrRowPoly a b = TxAddrRow  { taHash    :: a
-                                    , taAddress :: b
+data TxAddrRowPoly a b = TxAddrRow  { taHash    :: !a
+                                    , taAddress :: !b
                                     } deriving (Show)
 
 type TxAddrRowPGW = TxAddrRowPoly (Column PGText) (Column PGText)
