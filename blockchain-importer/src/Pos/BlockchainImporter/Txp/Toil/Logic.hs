@@ -64,7 +64,7 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     -- Update UTxOs
     let toilApplyUTxO = extendGlobalToilM $ Txp.applyToil txun
 
-    liftIO $ UT.applyModifierToUtxos postGresDB $ applyUTxOModifier txun
+    liftIO $ UT.applyModifierToUtxos postGresDB $! applyUTxOModifier txun
 
     -- Update tx history
     let appliersM = zipWithM (curry applier) [0..] txun
@@ -97,7 +97,7 @@ eRollbackToil txun blockHeight = do
     -- Update UTxOs
     let toilRollbackUtxo = extendGlobalToilM $ Txp.rollbackToil txun
 
-    liftIO $ UT.applyModifierToUtxos postGresDB $ rollbackUTxOModifier txun
+    liftIO $ UT.applyModifierToUtxos postGresDB $! rollbackUTxOModifier txun
 
     -- Update tx history
     let rollbacksM = mapM extraRollback $ reverse txun
@@ -266,8 +266,8 @@ applyUTxOModifier txs = mconcat $ applySingleModifier <$> txs
 
 -- Returns the UxtoModifier corresponding to applying a single tx
 applySingleModifier :: (TxAux, TxUndo) -> Txp.UtxoModifier
-applySingleModifier (txAux, _) = foldr  MM.delete
-                                        (foldr (uncurry MM.insert) mempty toInsert)
+applySingleModifier (txAux, _) = foldl' (flip MM.delete)
+                                        (foldl' (flip $ uncurry MM.insert) mempty toInsert)
                                         toDelete
   where tx       = taTx txAux
         id       = hash tx
