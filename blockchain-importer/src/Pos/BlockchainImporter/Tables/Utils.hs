@@ -2,7 +2,7 @@
 
 module Pos.BlockchainImporter.Tables.Utils
   ( hashToString
-  , addressToString
+  , addressToText
   , coinToInt64
   , runUpsertMany
   ) where
@@ -22,8 +22,8 @@ import           Pos.Txp.Toil.Types ()
 hashToString :: AbstractHash algo a -> String
 hashToString h = toString $ sformat hashHexF h
 
-addressToString :: Address -> String
-addressToString addr = toString $ sformat addressF addr
+addressToText :: Address -> Text
+addressToText addr = sformat addressF addr
 
 coinToInt64 :: Coin -> Int64
 coinToInt64 = fromIntegral . getCoin

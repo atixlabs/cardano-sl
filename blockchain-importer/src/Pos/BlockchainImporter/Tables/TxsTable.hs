@@ -76,9 +76,9 @@ insertTxToHistory conn tx txExtra blockHeight = void $ runUpsertMany conn txsTab
     inputs  = toaOut <$> (catMaybes $ NE.toList $ teInputOutputs txExtra)
     outputs = NE.toList $ _txOutputs tx
     row = TxRow { trHash          = pgString $ hashToString (hash tx)
-                , trInputsAddr    = pgArray (pgString . addressToString . txOutAddress) inputs
+                , trInputsAddr    = pgArray (pgStrictText . addressToText . txOutAddress) inputs
                 , trInputsAmount  = pgArray (pgInt8 . coinToInt64 . txOutValue) inputs
-                , trOutputsAddr   = pgArray (pgString . addressToString . txOutAddress) outputs
+                , trOutputsAddr   = pgArray (pgStrictText . addressToText . txOutAddress) outputs
                 , trOutputsAmount = pgArray (pgInt8 . coinToInt64 . txOutValue) outputs
                 , trBlockNum      = pgInt8 $ fromIntegral blockHeight
                   -- FIXME: Tx time should never be None at this stage

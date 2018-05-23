@@ -20,7 +20,7 @@ import qualified Database.PostgreSQL.Simple as PGS
 import           Opaleye
 
 import           Pos.BlockchainImporter.Core (TxExtra (..))
-import           Pos.BlockchainImporter.Tables.Utils (addressToString, hashToString)
+import           Pos.BlockchainImporter.Tables.Utils
 import           Pos.Core.Common (Address)
 import           Pos.Core.Txp (Tx (..), TxOut (..), TxOutAux (..))
 import           Pos.Crypto (hash)
@@ -44,8 +44,8 @@ makeRowPGW :: String -> Address -> TxAddrRowPGW
 makeRowPGW txHash txAddr = TxAddrRow {..}
   where
     taHash    = pgString txHash
-    taAddress = pgString address
-    address   = addressToString $ txAddr
+    taAddress = pgStrictText address
+    address   = addressToText $ txAddr
 
 -- | Inserts the senders and receivers of a given Tx into the Tx addresses table.
 insertTxAddresses :: PGS.Connection -> Tx -> TxExtra -> IO ()

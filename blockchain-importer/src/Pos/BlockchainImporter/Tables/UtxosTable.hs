@@ -50,11 +50,11 @@ toRecord :: TxIn -> TxOutAux -> Maybe UtxoRowPGW
 toRecord txIn@(TxInUtxo txHash txIndex) (TxOutAux (TxOut receiver value)) = Just $ row
   where sHash     = hashToString txHash
         iIndex    = fromIntegral txIndex
-        sAddress  = addressToString receiver
+        sAddress  = addressToText receiver
         iAmount   = coinToInt64 value
         row       = UtxoRow (pgString $ txId txIn)
                             (pgString sHash) (pgInt4 iIndex)
-                            (pgString sAddress) (pgInt8 iAmount)
+                            (pgStrictText sAddress) (pgInt8 iAmount)
 toRecord _ _ = Nothing
 
 -- | Applies a UtxoModifier to the UTxOs in the table
