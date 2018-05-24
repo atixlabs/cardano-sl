@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | BlockchainImporter's version of Toil logic.
@@ -62,7 +63,7 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     liftIO $ BBT.updateBestBlock postGresDB blockHeight
 
     -- Update UTxOs
-    let toilApplyUTxO = extendGlobalToilM $ Txp.applyToil txun
+    let !toilApplyUTxO = extendGlobalToilM $ Txp.applyToil txun
 
     liftIO $ UT.applyModifierToUtxos postGresDB $! applyUTxOModifier txun
 
@@ -78,7 +79,7 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
 
         liftIO $ TxsT.insertTx postGresDB tx newExtra blockHeight
 
-        let keyValueDBUpdate = do
+        let !keyValueDBUpdate = do
                   extra <- fromMaybe newExtra <$> getTxExtra id
                   putTxExtraWithHistory id extra $ getTxRelatedAddrs txAux txUndo
                   let balanceUpdate = getBalanceUpdate txAux txUndo
@@ -95,7 +96,7 @@ eRollbackToil txun blockHeight = do
     liftIO $ BBT.updateBestBlock postGresDB (blockHeight - 1)
 
     -- Update UTxOs
-    let toilRollbackUtxo = extendGlobalToilM $ Txp.rollbackToil txun
+    let !toilRollbackUtxo = extendGlobalToilM $ Txp.rollbackToil txun
 
     liftIO $ UT.applyModifierToUtxos postGresDB $! rollbackUTxOModifier txun
 
@@ -107,7 +108,7 @@ eRollbackToil txun blockHeight = do
     extraRollback (txAux, txUndo) = do
         liftIO $ TxsT.deleteTx postGresDB $ taTx txAux
 
-        let keyValueDBUpdate = do
+        let !keyValueDBUpdate = do
                   delTxExtraWithHistory (hash (taTx txAux)) $
                     getTxRelatedAddrs txAux txUndo
                   let BalanceUpdate {..} = getBalanceUpdate txAux txUndo
