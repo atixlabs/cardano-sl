@@ -68,24 +68,16 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     liftIO $ UT.applyModifierToUtxos postGresDB $! applyUTxOModifier txun
 
     -- Update tx history
-    let !appliersM = zipWithM (curry applier) [0..] txun
-    sequence_ . (toilApplyUTxO:) . (map blockchainImporterExtraMToEGlobalToilM) <$> appliersM
+    zipWithM_ (curry applier) [0..] txun
+    return toilApplyUTxO
   where
-    applier :: (Word32, (TxAux, TxUndo)) -> m (BlockchainImporterExtraM ())
+    applier :: (Word32, (TxAux, TxUndo)) -> m ()
     applier (i, (txAux, txUndo)) = do
         let tx = taTx txAux
             id = hash tx
             newExtra = TxExtra (Just (hh, i)) mTxTimestamp txUndo
 
         liftIO $ TxsT.insertTx postGresDB tx newExtra blockHeight
-
-        let !keyValueDBUpdate = do
-                  extra <- fromMaybe newExtra <$> getTxExtra id
-                  putTxExtraWithHistory id extra $ getTxRelatedAddrs txAux txUndo
-                  let balanceUpdate = getBalanceUpdate txAux txUndo
-                  updateAddrBalances balanceUpdate
-                  updateUtxoSumFromBalanceUpdate balanceUpdate
-        pure keyValueDBUpdate
 
 -- | Rollback transactions from one block.
 eRollbackToil ::
@@ -101,24 +93,12 @@ eRollbackToil txun blockHeight = do
     liftIO $ UT.applyModifierToUtxos postGresDB $! rollbackUTxOModifier txun
 
     -- Update tx history
-    let !rollbacksM = mapM extraRollback $ reverse txun
-    sequence_ . (toilRollbackUtxo :) . (map blockchainImporterExtraMToEGlobalToilM) <$> rollbacksM
+    mapM_ extraRollback $ reverse txun
+    return toilRollbackUtxo
   where
-    extraRollback :: (TxAux, TxUndo) -> m (BlockchainImporterExtraM ())
+    extraRollback :: (TxAux, TxUndo) -> m ()
     extraRollback (txAux, txUndo) = do
         liftIO $ TxsT.deleteTx postGresDB $ taTx txAux
-
-        let !keyValueDBUpdate = do
-                  delTxExtraWithHistory (hash (taTx txAux)) $
-                    getTxRelatedAddrs txAux txUndo
-                  let BalanceUpdate {..} = getBalanceUpdate txAux txUndo
-                  let balanceUpdate = BalanceUpdate {
-                      plusBalance = minusBalance,
-                      minusBalance = plusBalance
-                  }
-                  updateAddrBalances balanceUpdate
-                  updateUtxoSumFromBalanceUpdate balanceUpdate
-        pure keyValueDBUpdate
 
 ----------------------------------------------------------------------------
 -- Local
@@ -133,14 +113,7 @@ eProcessTx ::
     -> (TxId, TxAux)
     -> (TxUndo -> TxExtra)
     -> ExceptT ToilVerFailure ELocalToilM ()
-eProcessTx bvd curEpoch tx@(id, aux) createExtra = do
-    undo <- mapExceptT extendLocalToilM $ Txp.processTx bvd curEpoch tx
-    lift $ blockchainImporterExtraMToELocalToilM $ do
-        let extra = createExtra undo
-        putTxExtraWithHistory id extra $ getTxRelatedAddrs aux undo
-        let balanceUpdate = getBalanceUpdate aux undo
-        updateAddrBalances balanceUpdate
-        updateUtxoSumFromBalanceUpdate balanceUpdate
+eProcessTx bvd curEpoch tx@(id, aux) createExtra = pure ()
 
 -- | Get rid of invalid transactions.
 -- All valid transactions will be added to mem pool and applied to utxo.
