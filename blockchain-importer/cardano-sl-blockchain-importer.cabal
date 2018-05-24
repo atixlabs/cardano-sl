@@ -66,6 +66,7 @@ library
                       , conduit
                       , containers
                       , data-default
+                      , deepseq
                       , errors
                       , ether >= 0.5.1
                       , exceptions

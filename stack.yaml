@@ -147,7 +147,6 @@ packages:
   extra-dep: true
 
 nix:
-  packages: [git]
   shell-file: shell.nix
 
 extra-deps:
