@@ -68,7 +68,7 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     liftIO $ UT.applyModifierToUtxos postGresDB $! applyUTxOModifier txun
 
     -- Update tx history
-    let appliersM = zipWithM (curry applier) [0..] txun
+    let !appliersM = zipWithM (curry applier) [0..] txun
     sequence_ . (toilApplyUTxO:) . (map blockchainImporterExtraMToEGlobalToilM) <$> appliersM
   where
     applier :: (Word32, (TxAux, TxUndo)) -> m (BlockchainImporterExtraM ())
@@ -101,7 +101,7 @@ eRollbackToil txun blockHeight = do
     liftIO $ UT.applyModifierToUtxos postGresDB $! rollbackUTxOModifier txun
 
     -- Update tx history
-    let rollbacksM = mapM extraRollback $ reverse txun
+    let !rollbacksM = mapM extraRollback $ reverse txun
     sequence_ . (toilRollbackUtxo :) . (map blockchainImporterExtraMToEGlobalToilM) <$> rollbacksM
   where
     extraRollback :: (TxAux, TxUndo) -> m (BlockchainImporterExtraM ())
