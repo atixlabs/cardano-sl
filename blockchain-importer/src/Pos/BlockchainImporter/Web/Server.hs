@@ -22,15 +22,16 @@ import           Universum
 
 import           Control.Error.Util (exceptT, hoistEither)
 import           Data.Time.Units (Second)
-import           Formatting (build, sformat, (%))
+import           Formatting (build, sformat, string, (%))
 import           Mockable (Concurrently, Delay, Mockable, concurrently, delay)
 import           Network.Wai (Application)
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import           System.Wlog (logError)
 
 import           Servant.Generic (AsServerT, toServant)
 import           Servant.Server (Server, ServerT, serve)
 
-import           Pos.Crypto (hash)
+import           Pos.Crypto (hash, hashHexF)
 
 import           Pos.Diffusion.Types (Diffusion (..))
 
@@ -103,18 +104,21 @@ sendSignedTx
      => Diffusion m
      -> CEncodedSTx
      -> m ()
-sendSignedTx Diffusion{..} encodedSTx =
+sendSignedTx Diffusion{..} encodedSTx@(CEncodedSTx bs) = do
+  let bytesHash = hash bs
+  benchLog bytesHash "Received tx"
   exceptT' (hoistEither $ decodeSTx encodedSTx) (const $ throwM eInvalidEnc) $ \txAux -> do
     let txHash = hash $ taTx txAux
+    benchLog bytesHash "Decoded tx"
+    logHashEquality txHash bytesHash
     -- FIXME: We are using only the confirmed UTxO, we should also take into account the pending txs
     exceptT' (verifyTx getTxOut False txAux) (throwM . eInvalidTx txHash) $ \_ -> do
+      benchLog bytesHash "Verified tx"
       txProcessRes <- txpProcessTx (txHash, txAux)
+      benchLog bytesHash "Processed tx"
       whenLeft txProcessRes $ throwM . eProcessErr txHash
-      -- This is done for two reasons:
-      -- 1. In order not to overflow relay.
-      -- 2. To let other things (e. g. block processing) happen if
-      -- `newPayment`s are done continuously.
       wasAccepted <- notFasterThan (6 :: Second) $ sendTx txAux
+      benchLog bytesHash "Sent tx"
       void $ unless wasAccepted $ (throwM $ eNotAccepted txHash)
         where eInvalidEnc = Internal "Tx not broadcasted: invalid encoded tx"
               eInvalidTx txHash reason = Internal $
@@ -124,6 +128,8 @@ sendSignedTx Diffusion{..} encodedSTx =
               eNotAccepted txHash = Internal $
                   sformat  ("Tx broadcasted "%build%", not accepted by any peer") txHash
               exceptT' e f g = exceptT f g e
+              benchLog txHash msg = logError $ toText $ sformat ("["%build%"] "%string) txHash msg
+              logHashEquality txHash bytesHash = logError $ sformat ("["%build%"] Has tx hash "%hashHexF) bytesHash txHash
 
 
 --------------------------------------------------------------------------------
