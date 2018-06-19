@@ -21,9 +21,7 @@ module Pos.BlockchainImporter.Web.Server
 import           Universum
 
 import           Control.Error.Util (exceptT, hoistEither)
-import           Data.Time.Units (Second)
 import           Formatting (build, sformat, string, (%))
-import           Mockable (Concurrently, Delay, Mockable, concurrently, delay)
 import           Network.Wai (Application)
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import           System.Wlog (logError)
@@ -117,7 +115,7 @@ sendSignedTx Diffusion{..} encodedSTx@(CEncodedSTx bs) = do
       txProcessRes <- txpProcessTx (txHash, txAux)
       benchLog bytesHash "Processed tx"
       whenLeft txProcessRes $ throwM . eProcessErr txHash
-      wasAccepted <- notFasterThan (6 :: Second) $ sendTx txAux
+      wasAccepted <- sendTx txAux
       benchLog bytesHash "Sent tx"
       void $ unless wasAccepted $ (throwM $ eNotAccepted txHash)
         where eInvalidEnc = Internal "Tx not broadcasted: invalid encoded tx"
@@ -139,12 +137,3 @@ sendSignedTx Diffusion{..} encodedSTx@(CEncodedSTx bs) = do
 -- | A pure function that return the number of blocks.
 getBlockDifficulty :: Block -> Integer
 getBlockDifficulty tipBlock = fromIntegral $ getChainDifficulty $ tipBlock ^. difficultyL
-
-
-----------------------------------------------------------------------------
--- Utilities
-----------------------------------------------------------------------------
-
-notFasterThan ::
-       (Mockable Concurrently m, Mockable Delay m) => Second -> m a -> m a
-notFasterThan time action = fst <$> concurrently action (delay time)
