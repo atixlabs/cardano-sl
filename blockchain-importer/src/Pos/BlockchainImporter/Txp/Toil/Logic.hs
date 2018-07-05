@@ -11,7 +11,7 @@ module Pos.BlockchainImporter.Txp.Toil.Logic
       , eProcessTx
         -- * Pending tx DB processing
       , eInsertPendingTx
-      , eDeletePendingTxs
+      , eDeletePendingTx
       ) where
 
 import           Universum
@@ -26,7 +26,7 @@ import qualified Pos.BlockchainImporter.Tables.PendingTxsTable as PTxsT
 import qualified Pos.BlockchainImporter.Tables.TxsTable as TxsT
 import qualified Pos.BlockchainImporter.Tables.UtxosTable as UT
 import           Pos.BlockchainImporter.Txp.Toil.Monad (EGlobalToilM, ELocalToilM)
-import           Pos.Core (BlockVersionData, EpochIndex, HasConfiguration, HeaderHash, Timestamp)
+import           Pos.Core (BlockVersionData, EpochIndex, HasConfiguration, Timestamp)
 import           Pos.Core.Txp (Tx (..), TxAux (..), TxId, TxIn (..), TxOutAux (..), TxUndo)
 import           Pos.Crypto (WithHash (..), hash)
 import           Pos.Txp.Configuration (HasTxpConfiguration)
@@ -45,9 +45,9 @@ eApplyToil ::
        forall m. (HasConfiguration, HasPostGresDB, MonadIO m)
     => Maybe Timestamp
     -> [(TxAux, TxUndo)]
-    -> (HeaderHash, Word64)
+    -> Word64
     -> m (EGlobalToilM ())
-eApplyToil mTxTimestamp txun (hh, blockHeight) = do
+eApplyToil mTxTimestamp txun blockHeight = do
     -- Update best block
     liftIO $ maybePostGreStore blockHeight $ BBT.updateBestBlock blockHeight
 
@@ -57,16 +57,16 @@ eApplyToil mTxTimestamp txun (hh, blockHeight) = do
     liftIO $ maybePostGreStore blockHeight $ UT.applyModifierToUtxos $ applyUTxOModifier txun
 
     -- Update tx history
-    zipWithM_ (curry applier) [0..] txun
+    mapM_ applier txun
     return toilApplyUTxO
   where
-    applier :: (Word32, (TxAux, TxUndo)) -> m ()
-    applier (i, (txAux, txUndo)) = do
+    applier :: (TxAux, TxUndo) -> m ()
+    applier (txAux, txUndo) = do
         let tx = taTx txAux
-            newExtra = TxExtra (Just (hh, i)) mTxTimestamp txUndo
+            newExtra = TxExtra mTxTimestamp txUndo
 
-        liftIO $ maybePostGreStore blockHeight $ TxsT.insertTx tx newExtra blockHeight
-        eDeletePendingTxs [txAux]
+        liftIO $ maybePostGreStore blockHeight $ TxsT.insertConfirmedTx tx newExtra blockHeight
+        eDeletePendingTx (hash $ taTx txAux)
 
 -- | Rollback transactions from one block.
 eRollbackToil ::
@@ -133,8 +133,11 @@ eInsertPendingTx ::
 eInsertPendingTx tx txUndo = liftIO $ postGreOperate $ PTxsT.insertPendingTx tx txUndo
 
 -- | Deletes a pending tx from the Postgres DB
-eDeletePendingTxs :: (MonadIO m, HasPostGresDB) => [TxAux] -> m ()
-eDeletePendingTxs txAuxs = mapM_ (liftIO . postGreOperate . PTxsT.deletePendingTx . taTx) txAuxs
+eDeletePendingTx :: (MonadIO m, HasPostGresDB) => TxId -> m ()
+eDeletePendingTx ptxId = do
+  maybePtx <- liftIO $ postGreOperate $ PTxsT.getPendingTxByHash ptxId
+  whenJust maybePtx $ \ptx -> do
+    liftIO $ postGreOperate $ PTxsT.deletePendingTx ptxId
 
 ----------------------------------------------------------------------------
 -- Helpers

@@ -36,7 +36,7 @@ import           Pos.Diffusion.Types (Diffusion (..))
 
 import           Pos.Core (difficultyL, getChainDifficulty)
 import           Pos.Core.Block (Block)
-import           Pos.Core.Txp (taTx)
+import           Pos.Core.Txp (TxAux, TxId, taTx)
 import           Pos.Txp (MonadTxpLocal, txpProcessTx, verifyTx)
 import           Pos.Txp.DB.Utxo (getTxOut)
 import           Pos.Web (serveImpl)
@@ -103,27 +103,43 @@ sendSignedTx
      => Diffusion m
      -> CEncodedSTx
      -> m ()
-sendSignedTx Diffusion{..} encodedSTx =
+sendSignedTx diff@Diffusion{..} encodedSTx =
   exceptT' (hoistEither $ decodeSTx encodedSTx) (const $ throwM eInvalidEnc) $ \txAux -> do
     let txHash = hash $ taTx txAux
     -- FIXME: We are using only the confirmed UTxO, we should also take into account the pending txs
-    exceptT' (verifyTx getTxOut False txAux) (throwM . eInvalidTx txHash) $ \_ -> do
-      txProcessRes <- txpProcessTx (txHash, txAux)
-      whenLeft txProcessRes $ throwM . eProcessErr txHash
-      -- This is done for two reasons:
-      -- 1. In order not to overflow relay.
-      -- 2. To let other things (e. g. block processing) happen if
-      -- `newPayment`s are done continuously.
-      wasAccepted <- notFasterThan (6 :: Second) $ sendTx txAux
-      void $ unless wasAccepted $ (throwM $ eNotAccepted txHash)
+    exceptT' (verifyTx getTxOut False txAux) (throwM . eInvalidTx txHash) $ \_ ->
+        catch (sendVerifiedTx diff txHash txAux) handleSendVerifiedTxError
         where eInvalidEnc = Internal "Tx not broadcasted: invalid encoded tx"
               eInvalidTx txHash reason = Internal $
                   sformat ("Tx not broadcasted "%build%": "%build) txHash reason
-              eProcessErr txHash err = Internal $
-                  sformat ("Tx not broadcasted "%build%": error during process "%build) txHash err
-              eNotAccepted txHash = Internal $
-                  sformat  ("Tx broadcasted "%build%", not accepted by any peer") txHash
               exceptT' e f g = exceptT f g e
+
+sendVerifiedTx
+     :: (BlockchainImporterMode ctx m, MonadTxpLocal m)
+     => Diffusion m
+     -> TxId
+     -> TxAux
+     -> m ()
+sendVerifiedTx Diffusion {..} txHash txAux = do
+  txProcessRes <- txpProcessTx (txHash, txAux)
+  whenLeft txProcessRes $ throwM . eProcessErr
+  -- FIXME: Replace 6 second limit with a lower value?
+  -- This is done for two reasons:
+  -- 1. In order not to overflow relay.
+  -- 2. To let other things (e. g. block processing) happen if
+  -- `newPayment`s are done continuously.
+  wasAccepted <- notFasterThan (6 :: Second) $ sendTx txAux
+  void $ unless wasAccepted $ (throwM $ eNotAccepted)
+    where eProcessErr err = Internal $
+              sformat ("Tx not broadcasted "%build%": error during process "%build) txHash err
+          eNotAccepted = Internal $
+              sformat  ("Tx broadcasted "%build%", not accepted by any peer") txHash
+
+--FIXME: Delete pending tx and add to failed ones
+handleSendVerifiedTxError ::
+     (BlockchainImporterMode ctx m, MonadTxpLocal m)
+  => BlockchainImporterError -> m a
+handleSendVerifiedTxError = throwM
 
 
 --------------------------------------------------------------------------------

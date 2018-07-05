@@ -1,23 +1,28 @@
+{-# LANGUAGE Arrows #-}
 module Pos.BlockchainImporter.Tables.PendingTxsTable
-  ( -- * Data manipulation
-    insertPendingTx
+  ( -- * Getters
+    getPendingTxByHash
+    -- * Manipulation
+  , insertPendingTx
   , deletePendingTx
   , clearPendingTx
   ) where
 
 import           Universum
 
+import qualified Control.Arrow as A
 import qualified Data.List.NonEmpty as NE (toList)
 import           Data.Profunctor.Product.TH (makeAdaptorAndInstance)
 import           Data.Time.Clock.POSIX (getCurrentTime)
 import qualified Database.PostgreSQL.Simple as PGS
 import           Opaleye
+import           Opaleye.RunSelect
 
 import           Pos.BlockchainImporter.Tables.TxAddrTable (TxAddrRowPGR, TxAddrRowPGW,
                                                             transactionAddrTable)
 import qualified Pos.BlockchainImporter.Tables.TxAddrTable as TAT (insertTxAddresses)
 import           Pos.BlockchainImporter.Tables.Utils
-import           Pos.Core.Txp (Tx (..), TxOut (..), TxOutAux (..), TxUndo)
+import           Pos.Core.Txp (Tx (..), TxId, TxOut (..), TxOutAux (..), TxUndo)
 import           Pos.Crypto (hash)
 
 data PTxRowPoly h iAddrs iAmts oAddrs oAmts t = PTxRow  { ptrHash          :: h
@@ -51,6 +56,7 @@ pendingTxsTable = Table "pending_txs" (pPTxs PTxRow { ptrHash           = requir
                                                     , ptrOutputsAmount  = required "outputs_amount"
                                                     , ptrCreatedTime    = required "created_time"
                                                     })
+type PTxRow =  ( String, [String], [Int64], [String], [Int64])
 
 pendingTxAddrTable :: Table TxAddrRowPGW TxAddrRowPGR
 pendingTxAddrTable = transactionAddrTable "ptx_addresses"
@@ -79,10 +85,22 @@ insertPendingTxToHistory tx txUndo conn = do
                 }
 
 -- | Deletes a pending Tx by Tx hash from the pending tx tables.
-deletePendingTx :: Tx -> PGS.Connection -> IO ()
-deletePendingTx tx conn = void $ runDelete_   conn $
-                                              Delete pendingTxsTable (\row -> ptrHash row .== txHash) rCount
-  where txHash = pgString $ hashToString (hash tx)
+deletePendingTx :: TxId -> PGS.Connection -> IO ()
+deletePendingTx txHash conn = void $ runDelete_   conn $
+                                              Delete pendingTxsTable (\row -> ptrHash row .== pgTxHash) rCount
+  where pgTxHash = pgString $ hashToString txHash
+
+-- | Get pending tx by hash
+getPendingTxByHash :: TxId -> PGS.Connection -> IO (Maybe PTxRow)
+getPendingTxByHash txHash conn = do
+  txsMatched <- runSelect conn ptxByHashQuery
+  case txsMatched of
+    [ txMatched ] -> return $ Just txMatched
+    _             -> return Nothing
+    where ptxByHashQuery = proc () -> do
+            PTxRow rowTxHash inputsAddr inputsAmount outputsAddr outputsAmount _ <- (selectTable pendingTxsTable) -< ()
+            restrict -< rowTxHash .== (pgString $ hashToString txHash)
+            A.returnA -< (rowTxHash, inputsAddr, inputsAmount, outputsAddr, outputsAmount)
 
 -- | Deletes all pending tx from the pending tx tables
 clearPendingTx :: PGS.Connection -> IO ()

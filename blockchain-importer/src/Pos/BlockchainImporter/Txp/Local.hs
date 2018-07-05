@@ -15,6 +15,7 @@ import qualified Data.HashMap.Strict as HM
 
 import           Pos.Core (BlockVersionData, EpochIndex, HasConfiguration, Timestamp)
 import           Pos.Core.Txp (TxAux (..), TxId, TxUndo)
+import           Pos.Crypto (hash)
 import           Pos.Slotting (MonadSlots (getCurrentSlot), getSlotStart)
 import           Pos.StateLock (Priority (..), StateLock, StateLockMetrics, withStateLock)
 import           Pos.Txp.Logic.Local (txNormalizeAbstract, txProcessTransactionAbstract)
@@ -27,7 +28,7 @@ import           Pos.Util.Util (HasLens')
 import           Pos.BlockchainImporter.Configuration (HasPostGresDB)
 import           Pos.BlockchainImporter.Core (TxExtra (..))
 import           Pos.BlockchainImporter.Txp.Toil (BlockchainImporterExtraModifier, ELocalToilM,
-                                                  eDeletePendingTxs, eInsertPendingTx,
+                                                  eDeletePendingTx, eInsertPendingTx,
                                                   eNormalizeToil, eProcessTx, eemLocalTxsExtra)
 
 type ETxpLocalWorkMode ctx m =
@@ -71,7 +72,7 @@ eTxProcessTransactionNoLock itw@(_, txAux) = getCurrentSlot >>= \case
         -> (TxId, TxAux)
         -> ExceptT ToilVerFailure ELocalToilM TxUndo
     processTx' mTxTimestamp bvd epoch tx =
-        eProcessTx bvd epoch tx (TxExtra Nothing mTxTimestamp)
+        eProcessTx bvd epoch tx (TxExtra mTxTimestamp)
 
 -- | 1. Recompute UtxoView by current MemPool
 --   2. Remove invalid transactions from MemPool
@@ -82,7 +83,7 @@ eTxNormalize ::
 eTxNormalize = do
     extras <- MM.insertionsMap . view eemLocalTxsExtra <$> withTxpLocalData getTxpExtra
     invalidTxs <- txNormalizeAbstract buildEmptyContext (normalizeToil' extras)
-    whenJust invalidTxs eDeletePendingTxs
+    whenJust invalidTxs (\ptxs -> mapM_ (eDeletePendingTx . hash . taTx) ptxs)
   where
     buildEmptyContext :: Utxo -> [TxAux] -> m ()
     buildEmptyContext _ _ = pure ()
