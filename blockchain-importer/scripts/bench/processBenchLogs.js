@@ -30,7 +30,7 @@ const CSV_COLUMN_NAMES = [
  * On launch processes a log file and produces a csv file with the time taken for each
  * stage of tx processing.
  * Usage:
- *    node processBenchLogs.js INPUT_LOG_FILE OUTPUT_CSV_FILE
+ *    node processBenchLogs.js CHAIN INPUT_LOG_FILE OUTPUT_CSV_FILE
  * 
  * The produced file will have the following format:
  * - Tx hash: hash of the tx
@@ -41,7 +41,7 @@ const CSV_COLUMN_NAMES = [
  * - Total processing time: Time from receiving the tx and finishing sending it
  * - Confirmation time: Time from starting sending the tx and it being included in a block
  */
-processBenchLogs(process.argv[2], process.argv[3]);
+processBenchLogs(process.argv[2], process.argv[3], process.argv[4]);
 
 /**
  * Processes a log file and produces a csv file with the time taken for each stage of
@@ -53,7 +53,7 @@ processBenchLogs(process.argv[2], process.argv[3]);
  * @param {*} outputFile, the output csv file
  * @requires all the txs should be confirmed
  */
-function processBenchLogs(inputFile, outputFile) {
+function processBenchLogs(chain, inputFile, outputFile) {
   fs.readFile(inputFile, 'utf8', function (err, data) {
     if(err) {
       console.log(err);
@@ -80,7 +80,8 @@ function processBenchLogs(inputFile, outputFile) {
     console.log("Getting the confirmation times");
     const txHashes = getTxHashes(processMap);
     const promise_con_dates = Promise.all(txHashes.map(([id, hash]) =>
-      ExplorerApi.txs.getTimestamp(hash)
+      // FIXME: Handle case that the tx is not known by the explorer
+      ExplorerApi.getTxTimestamp(chain, hash)
         .then(res => Promise.resolve([id, res]))
       ));
 
