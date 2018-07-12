@@ -1,0 +1,45 @@
+[node:ERROR:ThreadId 748] [2018-06-19 19:27:45.74 UTC] [97b9a4f8fc3be6c6] Received tx
+[node:ERROR:ThreadId 748] [2018-06-19 19:27:45.74 UTC] [97b9a4f8fc3be6c6] Decoded tx
+[node:ERROR:ThreadId 748] [2018-06-19 19:27:45.74 UTC] [97b9a4f8fc3be6c6] Has tx hash 5e76321eacdcf2a9d985139ac52b0edca8901fc20425cbec0ace5f94683b477d
+[node:ERROR:ThreadId 747] [2018-06-19 19:27:45.74 UTC] [285bf3e210aeaaa1] Received tx
+[node:ERROR:ThreadId 748] [2018-06-19 19:27:45.75 UTC] [97b9a4f8fc3be6c6] Verified tx
+[node:ERROR:ThreadId 750] [2018-06-19 19:27:45.75 UTC] [024bb7ab42d3fe5b] Received tx
+[node:ERROR:ThreadId 748] [2018-06-19 19:27:45.75 UTC] [97b9a4f8fc3be6c6] Processed tx
+[node:ERROR:ThreadId 761] [2018-06-19 19:27:47.36 UTC] [b0874155fa6a17f2] Received tx
+[node:ERROR:ThreadId 762] [2018-06-19 19:27:49.48 UTC] [c20fc5ce48b4312d] Received tx
+[node:ERROR:ThreadId 763] [2018-06-19 19:27:49.83 UTC] [d4b4abf1e0361426] Received tx
+[node:ERROR:ThreadId 764] [2018-06-19 19:27:50.79 UTC] [b7d1d7b3eab6ae17] Received tx
+[node:ERROR:ThreadId 764] [2018-06-19 19:27:50.79 UTC] [b7d1d7b3eab6ae17] Decoded tx
+[node:ERROR:ThreadId 764] [2018-06-19 19:27:50.79 UTC] [b7d1d7b3eab6ae17] Has tx hash a97b01508b39f6b65ea33c1e6feb53380ca9a61d2cef5285d7bb7ccb51b84af0
+[node:ERROR:ThreadId 765] [2018-06-19 19:27:51.00 UTC] [4415b97a545458ce] Received tx
+[node:ERROR:ThreadId 748] [2018-06-19 19:27:51.75 UTC] [97b9a4f8fc3be6c6] Sent tx
+[node:ERROR:ThreadId 766] [2018-06-19 19:27:51.81 UTC] [77a710e38cb98890] Received tx
+[node:ERROR:ThreadId 767] [2018-06-19 19:27:52.82 UTC] [420ef5486891d474] Received tx
+[node:ERROR:ThreadId 772] [2018-06-19 19:27:53.80 UTC] [c8d6f38f4f7c5a6d] Received tx
+[node:ERROR:ThreadId 773] [2018-06-19 19:27:54.85 UTC] [c6a7f1381e05f802] Received tx
+[node:ERROR:ThreadId 774] [2018-06-19 19:27:54.88 UTC] [d849899dbb00e880] Received tx
+[node:ERROR:ThreadId 774] [2018-06-19 19:27:54.88 UTC] [d849899dbb00e880] Decoded tx
+[node:ERROR:ThreadId 774] [2018-06-19 19:27:54.88 UTC] [d849899dbb00e880] Has tx hash b06b5dd8815cc5372f61468c06e47f930ddd138df7ce21eb73a952a85aa98d89
+[node:ERROR:ThreadId 774] [2018-06-19 19:27:54.88 UTC] [d849899dbb00e880] Verified tx
+[node:ERROR:ThreadId 774] [2018-06-19 19:27:54.89 UTC] [d849899dbb00e880] Processed tx
+[node:ERROR:ThreadId 784] [2018-06-19 19:27:55.71 UTC] [ef32110e522edb69] Received tx
+[node:ERROR:ThreadId 786] [2018-06-19 19:27:56.88 UTC] [aca1da21aafecb74] Received tx
+[node:ERROR:ThreadId 787] [2018-06-19 19:27:57.88 UTC] [38f5a9cfb7d6c0e3] Received tx
+[node:ERROR:ThreadId 798] [2018-06-19 19:27:58.86 UTC] [7ef12e3f79b301dd] Received tx
+[node:ERROR:ThreadId 807] [2018-06-19 19:27:59.80 UTC] [83e725fc13a98303] Received tx
+[node:ERROR:ThreadId 809] [2018-06-19 19:28:00.83 UTC] [169f7df846665c6a] Received tx
+[node:ERROR:ThreadId 809] [2018-06-19 19:28:00.83 UTC] [169f7df846665c6a] Decoded tx
+[node:ERROR:ThreadId 809] [2018-06-19 19:28:00.83 UTC] [169f7df846665c6a] Has tx hash a97b01508b39f6b65ea33c1e6feb53380ca9a61d2cef5285d7bb7ccb51b84af0
+[node:ERROR:ThreadId 774] [2018-06-19 19:28:00.89 UTC] [d849899dbb00e880] Sent tx
+[node:ERROR:ThreadId 810] [2018-06-19 19:28:04.93 UTC] [92db34c9c503c2d3] Received tx
+[node:ERROR:ThreadId 810] [2018-06-19 19:28:04.93 UTC] [92db34c9c503c2d3] Decoded tx
+[node:ERROR:ThreadId 810] [2018-06-19 19:28:04.93 UTC] [92db34c9c503c2d3] Has tx hash 21f7c1f014c95805dd1a8b4dd55d8be570bb09caaaa3d00316e403f801c09d68
+[node:ERROR:ThreadId 810] [2018-06-19 19:28:04.93 UTC] [92db34c9c503c2d3] Verified tx
+[node:ERROR:ThreadId 810] [2018-06-19 19:28:04.93 UTC] [92db34c9c503c2d3] Processed tx
+[node:ERROR:ThreadId 810] [2018-06-19 19:28:10.94 UTC] [92db34c9c503c2d3] Sent tx
+[node:ERROR:ThreadId 825] [2018-06-19 19:28:14.75 UTC] [4969ea09c2a58846] Received tx
+[node:ERROR:ThreadId 825] [2018-06-19 19:28:14.75 UTC] [4969ea09c2a58846] Decoded tx
+[node:ERROR:ThreadId 825] [2018-06-19 19:28:14.76 UTC] [4969ea09c2a58846] Has tx hash 10f302ac11853ad890d893341652834d94374833aafb16b00350ccb0e94d09bd
+[node:ERROR:ThreadId 825] [2018-06-19 19:28:14.76 UTC] [4969ea09c2a58846] Verified tx
+[node:ERROR:ThreadId 825] [2018-06-19 19:28:14.76 UTC] [4969ea09c2a58846] Processed tx
+[node:ERROR:ThreadId 825] [2018-06-19 19:28:20.76 UTC] [4969ea09c2a58846] Sent tx
