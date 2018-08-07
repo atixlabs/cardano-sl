@@ -133,8 +133,8 @@ packages:
 
 # I don't think making a PR to servant is a good idea at this point
 - location:
-    git: https://github.com/serokell/servant.git
-    commit: 5db013cc36894afdff9e748dbc1c05947c54df3d
+    git: https://github.com/Profpatsch/servant.git
+    commit: d7518c34774484d94b7314d649c9e7690f04a51f
   extra-dep: true
   subdirs:
     - servant-server

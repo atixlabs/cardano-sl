@@ -7115,16 +7115,17 @@ inherit (pkgs) mesa;};
          , cardano-sl-db, cardano-sl-delegation, cardano-sl-generator
          , cardano-sl-infra, cardano-sl-networking, cardano-sl-ssc
          , cardano-sl-txp, cardano-sl-update, cardano-sl-util, conduit
-         , containers, cpphs, criterion, cryptonite, data-default, engine-io
-         , engine-io-wai, errors, ether, exceptions, formatting, free
-         , generic-arbitrary, hspec, http-types, lens, log-warper, memory
-         , mmorph, MonadRandom, mtl, opaleye, optparse-applicative
+         , containers, cpphs, criterion, cryptonite, data-default, either
+         , engine-io, engine-io-wai, errors, ether, exceptions, formatting
+         , free, generic-arbitrary, hspec, http-types, lens, log-warper
+         , memory, mmorph, MonadRandom, mtl, opaleye, optparse-applicative
          , postgresql-simple, product-profunctors, QuickCheck, reflection
          , resourcet, rocksdb-haskell-ng, safe-exceptions, serokell-util
-         , servant, servant-generic, servant-server, socket-io, stdenv, stm
-         , text, text-format, time, time-units, transformers, universum
-         , unliftio, unordered-containers, vector, wai, wai-cors, wai-extra
-         , warp, weigh
+         , servant, servant-generic, servant-multipart, servant-server
+         , servant-swagger, socket-io, stdenv, stm, swagger2, text
+         , text-format, time, time-units, transformers, universum, unliftio
+         , unordered-containers, vector, wai, wai-cors, wai-extra, warp
+         , weigh
          }:
          mkDerivation {
            pname = "cardano-sl-blockchain-importer";
@@ -7140,8 +7141,8 @@ inherit (pkgs) mesa;};
              cardano-sl-delegation cardano-sl-generator cardano-sl-infra
              cardano-sl-networking cardano-sl-ssc cardano-sl-txp
              cardano-sl-update cardano-sl-util conduit containers data-default
-             engine-io engine-io-wai errors ether exceptions formatting free
-             generic-arbitrary http-types lens log-warper memory mmorph mtl
+             either engine-io engine-io-wai errors ether exceptions formatting
+             free generic-arbitrary http-types lens log-warper memory mmorph mtl
              opaleye postgresql-simple product-profunctors QuickCheck reflection
              resourcet rocksdb-haskell-ng safe-exceptions serokell-util servant
              servant-generic servant-server socket-io stm text text-format time
@@ -7150,9 +7151,11 @@ inherit (pkgs) mesa;};
            ];
            libraryToolDepends = [ cpphs ];
            executableHaskellDepends = [
-             base cardano-sl cardano-sl-core cardano-sl-infra
-             cardano-sl-networking cardano-sl-update cardano-sl-util formatting
-             log-warper optparse-applicative postgresql-simple universum
+             aeson base bytestring cardano-sl cardano-sl-core cardano-sl-crypto
+             cardano-sl-db cardano-sl-infra cardano-sl-networking
+             cardano-sl-update cardano-sl-util formatting lens log-warper
+             optparse-applicative postgresql-simple servant-multipart
+             servant-server servant-swagger swagger2 universum
            ];
            executableToolDepends = [ cpphs ];
            testHaskellDepends = [
@@ -28396,8 +28399,8 @@ inherit (pkgs) which;};
            version = "0.6.7000.0";
            src = fetchgit {
              url = "https://github.com/tomjaguarpaw/haskell-opaleye";
-             sha256 = "0m1yhkjf9a1236d1n9pppvg41l4mvnazbfmanz65pwzwdwqdxl18";
-             rev = "d3cee224fdb2a3cfc00254151f179c1e6d15fd02";
+             sha256 = "0haanimww7nj77drl3c9a73vn6b3f55cwpkagxhc0l4qk49clvz1";
+             rev = "5f71296b4d7b74c07a8a3f12b250bd21eff7a730";
            };
            libraryHaskellDepends = [
              aeson base base16-bytestring bytestring case-insensitive
@@ -34506,9 +34509,9 @@ inherit (pkgs) which;};
            pname = "servant-server";
            version = "0.12";
            src = fetchgit {
-             url = "https://github.com/serokell/servant.git";
-             sha256 = "1irn9kvyyv2xxfm5rg92f3sw4x5c0drg44g74ccpsw83dh1wl169";
-             rev = "5db013cc36894afdff9e748dbc1c05947c54df3d";
+             url = "https://github.com/Profpatsch/servant.git";
+             sha256 = "0wak1iq10igh0q8ja3q6qr13igka0hqfnq40795nxynlhgp9s1zi";
+             rev = "d7518c34774484d94b7314d649c9e7690f04a51f";
            };
            postUnpack = "sourceRoot+=/servant-server; echo source root reset to $sourceRoot";
            isLibrary = true;

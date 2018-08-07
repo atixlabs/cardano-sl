@@ -105,10 +105,12 @@ let
     };
   });
   connect = let
+      importerConfigFile = ./custom-importer-config.nix;
       walletConfigFile = ./custom-wallet-config.nix;
+      importerConfig = if allowCustomConfig then (if builtins.pathExists importerConfigFile then import importerConfigFile else {}) else {};
       walletConfig = if allowCustomConfig then (if builtins.pathExists walletConfigFile then import walletConfigFile else {}) else {};
     in
-      args: pkgs.callPackage ./scripts/launch/connect-to-cluster (args // { inherit gitrev; } // walletConfig );
+      args: pkgs.callPackage ./scripts/launch/connect-to-cluster (args // { inherit gitrev; } // walletConfig // importerConfig );
   other = rec {
     demoCluster = pkgs.callPackage ./scripts/launch/demo-cluster { inherit gitrev; };
     walletIntegrationTests = pkgs.callPackage ./scripts/test/wallet/integration { inherit gitrev; };
